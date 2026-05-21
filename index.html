@@ -742,21 +742,22 @@
   }
   .tool-btn {
     flex: 1;
-    padding: 8px 2px;
+    padding: 6px 2px;
     border-radius: 8px;
     border: none;
     background: transparent;
     color: var(--text2);
     font-size: 10.5px;
     font-weight: 700;
+    line-height: 1.25;
     cursor: pointer;
     font-family: inherit;
     transition: all 0.12s;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    text-align: center;
   }
   .tool-btn.active { background: var(--brand); color: #fff; }
+  .tool-btn[data-tool="delete"] { color: var(--red); }
+  .tool-btn[data-tool="delete"].active { background: var(--red); color: #fff; }
   .tool-btn:active { transform: scale(0.96); }
 
   /* ===== スタンプ ===== */
@@ -803,6 +804,7 @@
   <button class="tool-btn" data-tool="L">Lコーナー補強</button>
   <button class="tool-btn" data-tool="U">コ端部筋</button>
   <button class="tool-btn" data-tool="line">ジョイント</button>
+  <button class="tool-btn" data-tool="delete">削除</button>
 </div>
 
 <!-- DROP ZONE -->
@@ -13046,7 +13048,6 @@ let draggingStampEl = null;
 let draggingPin = null;
 let draggingPinEl = null;
 let dragGrabDX = 0, dragGrabDY = 0;
-let lastStampTap = { id: null, time: 0 };
 
 const canvas = document.getElementById('pdfCanvas');
 const ctx = canvas.getContext('2d');
@@ -13391,31 +13392,38 @@ function handleTap(touch) {
 
   const hitEl = document.elementFromPoint(touch.clientX, touch.clientY);
 
-  // ピン本体をタップ → 修正モーダル
+  // ピンをタップ（削除ツール中は削除、それ以外は編集）
   const pinEl = hitEl && hitEl.closest ? hitEl.closest('.pin') : null;
   if (pinEl && pinEl.dataset.pinId) {
     const pin = pins.find(p => p.id === Number(pinEl.dataset.pinId));
-    if (pin) { openEditModal(pin); return; }
+    if (pin) {
+      if (activeTool === 'delete') {
+        pins = pins.filter(p => p.id !== pin.id);
+        updatePinCount();
+        renderPins();
+      } else {
+        openEditModal(pin);
+      }
+      return;
+    }
   }
 
-  // スタンプをタップ → 回転、素早く2回タップ → 削除
+  // スタンプをタップ（削除ツール中は削除、それ以外は回転）
   const stEl = hitEl && hitEl.closest ? hitEl.closest('.stamp') : null;
   if (stEl && stEl.dataset.stampId) {
     const st = stamps.find(s => s.id === Number(stEl.dataset.stampId));
     if (st) {
-      const now = Date.now();
-      if (lastStampTap.id === st.id && now - lastStampTap.time < 300) {
-        lastStampTap = { id: null, time: 0 };
+      if (activeTool === 'delete') {
         deleteStamp(st);
       } else {
-        lastStampTap = { id: st.id, time: now };
         rotateStamp(st);
       }
       return;
     }
   }
 
-  // 図面の空き場所をタップ → アクティブツールで配置
+  // 図面の空き場所をタップ → アクティブツールで配置（削除ツール中は何もしない）
+  if (activeTool === 'delete') return;
   const rect = canvasArea.getBoundingClientRect();
   const z = scale / baseScale;
   const x = (touch.clientX - rect.left - tx) / z;
@@ -13965,7 +13973,6 @@ async function exportPDF() {
 
     const now = new Date();
     const ymd = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
-    const dateStr = `${now.getFullYear()}/${now.getMonth() + 1}/${now.getDate()} ${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
     const docTitle = `${ymd}_現場検査記録`;
 
     printWin.document.write(`<!DOCTYPE html><html lang="ja"><head>
@@ -13975,7 +13982,6 @@ async function exportPDF() {
       body { font-family: 'Hiragino Kaku Gothic ProN', system-ui, sans-serif; margin: 0; padding: 24px; color: #1a1a1a; background: #fff; color-scheme: light; }
       h1 { font-size: 20px; margin-bottom: 4px; }
       h2 { font-size: 15px; margin: 26px 0 10px; border-bottom: 2px solid #2f8a5e; padding-bottom: 6px; }
-      .date { color: #666; font-size: 13px; margin-bottom: 16px; }
       .sheet { margin-bottom: 24px; }
       .sheet-label { font-size: 13px; font-weight: 700; color: #444; margin-bottom: 6px; }
       .sheet img { width: 100%; max-width: 780px; max-height: 940px; display: block; border: 1px solid #ddd; }
@@ -13989,7 +13995,6 @@ async function exportPDF() {
       @media print { .sheet { page-break-inside: avoid; } h2 { page-break-after: avoid; } }
     </style>
     </head><body>
-    <div class="date">出力日時: ${dateStr}</div>
     ${sheetsHTML}
     ${pinSection}
     ${heightSection}
