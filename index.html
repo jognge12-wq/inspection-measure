@@ -760,6 +760,27 @@
   .tool-btn[data-tool="delete"].active { background: var(--red); color: #fff; }
   .tool-btn:active { transform: scale(0.96); }
 
+  /* ===== スタンプサイズ調整バー ===== */
+  .size-row {
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+    padding: 7px 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+  .size-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text2);
+    white-space: nowrap;
+  }
+  #stampSize {
+    flex: 1;
+    accent-color: var(--brand);
+  }
+
   /* ===== スタンプ ===== */
   #stampLayer {
     position: absolute;
@@ -805,6 +826,12 @@
   <button class="tool-btn" data-tool="U">コ端部筋</button>
   <button class="tool-btn" data-tool="line">ジョイント</button>
   <button class="tool-btn" data-tool="delete">削除</button>
+</div>
+
+<!-- STAMP SIZE -->
+<div class="size-row" id="sizeRow" style="display:none">
+  <span class="size-label">スタンプの大きさ</span>
+  <input type="range" id="stampSize" min="0.015" max="0.13" step="0.005" value="0.04">
 </div>
 
 <!-- DROP ZONE -->
@@ -13103,6 +13130,7 @@ function showViewerUI() {
   document.getElementById('canvasArea').style.display = 'block';
   document.getElementById('toolbar').style.display = 'flex';
   document.getElementById('toolRow').style.display = 'flex';
+  document.getElementById('sizeRow').style.display = 'flex';
 }
 
 function flashZoomHint() {
@@ -13684,7 +13712,11 @@ const STAMP_PATH = {
   line: 'M 8 36 L 64 36'
 };
 const STAMP_ANGLES = { L: [0, 90, 180, 270], U: [0, 90, 180, 270], line: [0, 90] };
-const STAMP_FRAC = 0.12;   // 図面幅に対するスタンプの大きさ
+let stampSizeFrac = 0.04;   // 図面幅に対するスタンプの大きさ（スライダーで調整）
+document.getElementById('stampSize').addEventListener('input', e => {
+  stampSizeFrac = parseFloat(e.target.value);
+  renderStamps();
+});
 
 function stampSVG(type) {
   const d = STAMP_PATH[type];
@@ -13705,7 +13737,7 @@ document.querySelectorAll('.tool-btn').forEach(btn => {
 
 function renderStamps() {
   stampLayer.innerHTML = '';
-  const size = dispW * STAMP_FRAC;
+  const size = dispW * stampSizeFrac;
   stamps.filter(s => s.pageNum === currentPage).forEach(s => {
     const el = document.createElement('div');
     el.className = 'stamp';
@@ -13737,7 +13769,7 @@ function deleteStamp(stamp) {
 function drawStampOnCanvas(cx, stamp, cw, ch) {
   const d = STAMP_PATH[stamp.type];
   if (!d) return;
-  const size = cw * STAMP_FRAC;
+  const size = cw * stampSizeFrac;
   const angles = STAMP_ANGLES[stamp.type] || [0];
   const angle = (angles[stamp.rotIndex] || 0) * Math.PI / 180;
   cx.save();
