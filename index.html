@@ -13721,8 +13721,8 @@ document.getElementById('stampSize').addEventListener('input', e => {
 function stampSVG(type) {
   const d = STAMP_PATH[type];
   return '<svg viewBox="0 0 72 72">'
-    + '<path d="' + d + '" fill="none" stroke="#ffffff" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>'
-    + '<path d="' + d + '" fill="none" stroke="#2f8a5e" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>'
+    + '<path d="' + d + '" fill="none" stroke="#ffffff" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>'
+    + '<path d="' + d + '" fill="none" stroke="#1d4ed8" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>'
     + '</svg>';
 }
 
@@ -13781,10 +13781,10 @@ function drawStampOnCanvas(cx, stamp, cw, ch) {
   cx.lineJoin = 'round';
   const path = new Path2D(d);
   cx.strokeStyle = '#ffffff';
-  cx.lineWidth = 9;
+  cx.lineWidth = 16;
   cx.stroke(path);
-  cx.strokeStyle = '#2f8a5e';
-  cx.lineWidth = 5;
+  cx.strokeStyle = '#1d4ed8';
+  cx.lineWidth = 9;
   cx.stroke(path);
   cx.restore();
 }
