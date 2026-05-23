@@ -812,6 +812,37 @@
     touch-action: manipulation;
   }
   .height-formula:active { opacity: 0.7; }
+  .height-formula.empty {
+    background: var(--surface2);
+    color: var(--text3);
+    border: 1px dashed var(--border2);
+    padding: 2px 7px;
+  }
+  .height-section {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text3);
+    letter-spacing: 0.04em;
+    margin: 14px 4px 6px;
+    padding-left: 4px;
+  }
+  .height-section:first-child { margin-top: 0; }
+  .sign-toggle {
+    border: none;
+    background: var(--surface);
+    color: var(--brand-ink);
+    font-size: 13px;
+    font-weight: 800;
+    width: 22px;
+    height: 22px;
+    border-radius: 4px;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+    font-family: inherit;
+    touch-action: manipulation;
+  }
+  .sign-toggle:active { transform: scale(0.92); }
   .height-formula-edit-wrap {
     display: inline-flex;
     align-items: center;
@@ -13234,48 +13265,52 @@ let inputBuffer = '';
 
 // 高さ記録フォーム（図面とは独立した定型記録）
 const HEIGHT_ITEMS = [
-  { key: 'bm',       label: 'BM' },
-  { key: 'gl',       label: 'GL' },
-  { key: 'kiso',     label: '基礎天端' },
-  { key: 'choubari', label: '丁張り天端' },
-  { key: 'sutecon1', label: '捨てコン・砕石天端〈一般〉' },
-  { key: 'sutecon2', label: '捨てコン・砕石天端〈深基礎〉' },
-  { key: 'slab',     label: 'スラブ天端' },
-  { key: 'm16',      label: 'M16' },
-  { key: 'm12',      label: 'M12' },
-  { key: 'anchor',   label: 'アンカー' }
+  // === 入力 ===
+  { key: 'bm',       label: 'BM',         section: 'input', kind: 'value' },
+  { key: 'gl',       label: 'GL',         section: 'input', kind: 'offset', base: 'bm' },
+  { key: 'deep1',    label: '深基礎 ①',   section: 'input', kind: 'offset', base: 'gl' },
+  { key: 'deep2',    label: '深基礎 ②',   section: 'input', kind: 'offset', base: 'gl' },
+  { key: 'deep3',    label: '深基礎 ③',   section: 'input', kind: 'offset', base: 'gl' },
+  { key: 'choubari', label: '丁張り天端', section: 'input', kind: 'offset', base: 'kiso' },
+  // === 自動表示（係数チップで調整可）===
+  { key: 'kiso',     label: '基礎天端',           section: 'auto', kind: 'offset', base: 'gl' },
+  { key: 'sutecon',  label: '捨てコン・砕石天端', section: 'auto', kind: 'offset', base: 'gl' },
+  { key: 'slab',     label: 'スラブ天端',         section: 'auto', kind: 'offset', base: 'gl' },
+  { key: 'm16',      label: 'M16',                section: 'auto', kind: 'offset', base: 'kiso' },
+  { key: 'm12',      label: 'M12',                section: 'auto', kind: 'offset', base: 'kiso' },
+  { key: 'anchor',   label: 'アンカー',           section: 'auto', kind: 'offset', base: 'kiso' }
 ];
 
 // 自動計算のデフォルト式（base=依存項目, delta=加算する数）
+// 自動項目の係数デフォルト（符号付き標高オフセット）
 const HEIGHT_OFFSET_DEFAULTS = {
-  // 基準項目(base) + 標高オフセット(sign × mag)
-  kiso:     { base: 'gl',   sign:  1, mag: 420 },  // 基礎天端 = GL+420
-  sutecon1: { base: 'gl',   sign: -1, mag: 150 },  // 捨てコン砕石〈一般〉 = GL-150
-  slab:     { base: 'gl',   sign:  1, mag:  30 },  // スラブ天端 = GL+30
-  m16:      { base: 'kiso', sign:  1, mag:  40 },  // M16 = 基礎天端+40
-  m12:      { base: 'kiso', sign:  1, mag: 145 },  // M12 = 基礎天端+145
-  anchor:   { base: 'kiso', sign:  1, mag: 120 }   // アンカー = 基礎天端+120
+  kiso:    420,   // 基礎天端 = GL+420
+  sutecon: -150,  // 捨てコン・砕石天端 = GL−150
+  slab:    30,    // スラブ天端 = GL+30
+  m16:     40,    // M16 = 基礎天端+40
+  m12:     145,   // M12 = 基礎天端+145
+  anchor:  120    // アンカー = 基礎天端+120
 };
 
-let heightValues = {};      // 手動入力（上書き）
-let heightMagnitudes = {};  // 係数の上書き（標高オフセットの大きさ）
+let heightValues = {};   // 手動入力した値（BM のような value 型、または auto 項目の上書き）
+let heightOffsets = {};  // 係数の上書き／入力項目で設定した値（符号付き）
 let modalMode = 'pin';
 let editingHeightKey = null;
 
-function getMag(key) {
-  if (heightMagnitudes[key] !== undefined) return heightMagnitudes[key];
-  return HEIGHT_OFFSET_DEFAULTS[key] ? HEIGHT_OFFSET_DEFAULTS[key].mag : 0;
-}
-function getSign(key) {
-  return HEIGHT_OFFSET_DEFAULTS[key] ? HEIGHT_OFFSET_DEFAULTS[key].sign : 1;
+function getOffset(key) {
+  if (heightOffsets[key] !== undefined) return heightOffsets[key];
+  if (HEIGHT_OFFSET_DEFAULTS[key] !== undefined) return HEIGHT_OFFSET_DEFAULTS[key];
+  return null;
 }
 function getComputed(key) {
-  const def = HEIGHT_OFFSET_DEFAULTS[key];
-  if (!def) return null;
-  const baseVal = getEffective(def.base);
+  const item = HEIGHT_ITEMS.find(i => i.key === key);
+  if (!item || item.kind !== 'offset') return null;
+  const baseVal = getEffective(item.base);
   if (baseVal === null) return null;
-  // 標高が上がる(sign>0)ほど標尺読みは小さくなる → 引く
-  return baseVal - getSign(key) * getMag(key);
+  const off = getOffset(key);
+  if (off === null) return null;
+  // 標高オフセットが正(上方)なら読みは小さくなる → 引く
+  return baseVal - off;
 }
 function getEffective(key) {
   if (heightValues[key]) {
@@ -13285,11 +13320,13 @@ function getEffective(key) {
   return getComputed(key);
 }
 function formatFormula(key) {
-  const def = HEIGHT_OFFSET_DEFAULTS[key];
-  if (!def) return '';
-  const baseItem = HEIGHT_ITEMS.find(h => h.key === def.base);
-  const baseLabel = baseItem ? baseItem.label : def.base;
-  return baseLabel + (getSign(key) > 0 ? '+' : '−') + getMag(key);
+  const item = HEIGHT_ITEMS.find(i => i.key === key);
+  if (!item || item.kind !== 'offset') return '';
+  const baseItem = HEIGHT_ITEMS.find(i => i.key === item.base);
+  const baseLabel = baseItem ? baseItem.label : item.base;
+  const off = getOffset(key);
+  if (off === null) return baseLabel + '+?';
+  return baseLabel + (off >= 0 ? '+' : '−') + Math.abs(off);
 }
 
 // スタンプマーク
@@ -13347,7 +13384,7 @@ function resetPins() {
   editingPinId = null;
   pendingPinPos = null;
   heightValues = {};
-  heightMagnitudes = {};
+  heightOffsets = {};
   stamps = [];
   stampIdCounter = 1;
   draggingStamp = null;
@@ -13780,7 +13817,17 @@ function renderHeightRows() {
   const body = document.getElementById('heightBody');
   body.innerHTML = '';
   let filled = 0;
+  let currentSection = null;
+
   HEIGHT_ITEMS.forEach(item => {
+    if (item.section !== currentSection) {
+      currentSection = item.section;
+      const header = document.createElement('div');
+      header.className = 'height-section';
+      header.textContent = currentSection === 'input' ? '入力' : '自動表示（係数で調整可）';
+      body.appendChild(header);
+    }
+
     const v = getEffective(item.key);
     const hasValue = v !== null;
     if (hasValue) filled++;
@@ -13793,13 +13840,21 @@ function renderHeightRows() {
     label.textContent = item.label;
     row.appendChild(label);
 
-    if (HEIGHT_OFFSET_DEFAULTS[item.key]) {
+    if (item.kind === 'offset') {
       const chip = document.createElement('div');
       chip.className = 'height-formula';
-      chip.textContent = formatFormula(item.key);
+      const off = getOffset(item.key);
+      const baseItem = HEIGHT_ITEMS.find(h => h.key === item.base);
+      const baseLabel = baseItem ? baseItem.label : item.base;
+      if (off === null) {
+        chip.textContent = baseLabel + ' +?';
+        chip.classList.add('empty');
+      } else {
+        chip.textContent = formatFormula(item.key);
+      }
       chip.addEventListener('click', e => {
         e.stopPropagation();
-        startInlineMagEdit(chip, item.key);
+        startInlineOffsetEdit(chip, item.key);
       });
       row.appendChild(chip);
     }
@@ -13815,31 +13870,50 @@ function renderHeightRows() {
   document.getElementById('heightTitle').textContent = `高さ記録 (${filled}/${HEIGHT_ITEMS.length})`;
 }
 
-function startInlineMagEdit(chipEl, key) {
-  const def = HEIGHT_OFFSET_DEFAULTS[key];
-  const baseItem = HEIGHT_ITEMS.find(h => h.key === def.base);
-  const baseLabel = baseItem ? baseItem.label : def.base;
-  const sign = getSign(key);
+function startInlineOffsetEdit(chipEl, key) {
+  const item = HEIGHT_ITEMS.find(i => i.key === key);
+  const baseItem = HEIGHT_ITEMS.find(h => h.key === item.base);
+  const baseLabel = baseItem ? baseItem.label : item.base;
+  const currentOff = getOffset(key);
+  let sign = (currentOff !== null && currentOff < 0) ? -1 : 1;
+  let mag = currentOff !== null ? Math.abs(currentOff) : 0;
+
   const wrap = document.createElement('span');
   wrap.className = 'height-formula-edit-wrap';
   const prefix = document.createElement('span');
   prefix.className = 'height-formula-prefix';
-  prefix.textContent = baseLabel + (sign > 0 ? '+' : '−');
+  prefix.textContent = baseLabel;
   wrap.appendChild(prefix);
+
+  const signBtn = document.createElement('button');
+  signBtn.type = 'button';
+  signBtn.className = 'sign-toggle';
+  signBtn.textContent = sign > 0 ? '+' : '−';
+  // 入力欄の focus を奪わないよう mousedown/touchstart を抑制
+  signBtn.addEventListener('mousedown', e => e.preventDefault());
+  signBtn.addEventListener('touchstart', e => e.preventDefault(), { passive: false });
+  signBtn.addEventListener('click', e => {
+    e.preventDefault();
+    sign = -sign;
+    signBtn.textContent = sign > 0 ? '+' : '−';
+  });
+  wrap.appendChild(signBtn);
+
   const input = document.createElement('input');
   input.type = 'text';
   input.inputMode = 'numeric';
   input.pattern = '[0-9]*';
-  input.value = String(getMag(key));
+  input.value = String(mag);
   input.className = 'height-formula-edit';
   wrap.appendChild(input);
+
   let committed = false;
   const commit = () => {
     if (committed) return;
     committed = true;
-    const v = parseInt(input.value, 10);
-    if (!isNaN(v) && v >= 0) {
-      heightMagnitudes[key] = v;
+    const m = parseInt(input.value, 10);
+    if (!isNaN(m) && m >= 0) {
+      heightOffsets[key] = sign * m;
     }
     renderHeightRows();
   };
@@ -13847,6 +13921,7 @@ function startInlineMagEdit(chipEl, key) {
   input.addEventListener('keydown', ev => {
     if (ev.key === 'Enter') input.blur();
   });
+
   chipEl.replaceWith(wrap);
   setTimeout(() => { input.focus(); input.select(); }, 0);
 }
@@ -13865,9 +13940,13 @@ function openHeightInput(key) {
   document.getElementById('btnDeletePin').style.display = 'none';
 
   const basisEl = document.getElementById('heightBasis');
-  basisEl.textContent = HEIGHT_OFFSET_DEFAULTS[key]
-    ? `${formatFormula(key)}（自動計算。違う場合は数字を打ち直してください）`
-    : '';
+  if (item && item.kind === 'offset' && getOffset(key) !== null) {
+    basisEl.textContent = `${formatFormula(key)}（係数チップで変更／値を直接上書きも可）`;
+  } else if (item && item.kind === 'offset') {
+    basisEl.textContent = '係数チップで「基準＋数値」を設定してください';
+  } else {
+    basisEl.textContent = '';
+  }
 
   updateValueDisplay();
   openModal();
