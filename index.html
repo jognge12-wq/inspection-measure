@@ -213,6 +213,7 @@
     min-height: 52px;
   }
   .tbar-btn:active { transform: scale(0.96); opacity: 0.85; }
+  .tbar-btn { touch-action: manipulation; }
   .tbar-btn .tbar-ico { width: 22px; height: 22px; flex-shrink: 0; }
   .tbar-btn .tbar-label { line-height: 1; }
   .tbar-btn.primary { background: var(--brand); color: #fff; box-shadow: none; }
@@ -487,6 +488,16 @@
 
   .value-display.has-value .value-num { color: var(--brand-ink); }
 
+  .basis-line {
+    font-size: 11.5px;
+    color: var(--text2);
+    text-align: center;
+    margin: -8px 0 12px;
+    font-variant-numeric: tabular-nums;
+    display: none;
+  }
+  .modal.height-mode .basis-line:not(:empty) { display: block; }
+
   .value-num .cursor {
     display: inline-block;
     width: 3px;
@@ -516,6 +527,7 @@
   .numkey {
     height: 64px;
     border-radius: 12px;
+    touch-action: manipulation;
     border: none;
     background: var(--surface2);
     color: var(--ink);
@@ -555,6 +567,7 @@
     transition: all 0.12s;
   }
 
+  .modal-btn { touch-action: manipulation; }
   .modal-btn:active { transform: scale(0.97); }
   .modal-btn.save { background: var(--brand); color: #fff; }
   .modal-btn.delete { background: var(--red-l); color: var(--red); }
@@ -801,35 +814,29 @@
   }
   .tool-btn {
     flex: 1;
-    padding: 6px 2px 5px;
+    padding: 7px 4px;
     border-radius: 10px;
     border: none;
     background: transparent;
     color: var(--text2);
-    font-size: 10.5px;
-    font-weight: 700;
-    line-height: 1.2;
     cursor: pointer;
     font-family: inherit;
     transition: background 0.12s, color 0.12s, transform 0.08s;
-    text-align: center;
     display: flex;
-    flex-direction: column;
     align-items: center;
-    justify-content: flex-start;
-    gap: 3px;
-    min-height: 54px;
+    justify-content: center;
+    min-height: 44px;
+    touch-action: manipulation;
   }
   .tool-btn .tool-ico,
   .tool-btn .tool-ico-stamp {
-    width: 22px;
-    height: 22px;
+    width: 28px;
+    height: 28px;
     flex-shrink: 0;
     display: block;
   }
   .tool-btn .tool-ico-stamp { overflow: visible; }
-  .tool-btn .tool-label { display: block; word-break: keep-all; }
-  .tool-btn:active { transform: scale(0.97); }
+  .tool-btn:active { transform: scale(0.94); }
 
   /* アクティブ：薄緑ピル。スタンプ系はアイコン色を維持して実形を見せる */
   .tool-btn.active { background: var(--brand-soft); color: var(--brand-ink); }
@@ -944,25 +951,20 @@
 
 <!-- TOOL ROW -->
 <div class="tool-row" id="toolRow" style="display:none">
-  <button class="tool-btn active" data-tool="pin">
+  <button class="tool-btn active" data-tool="pin" aria-label="数値ピン">
     <svg viewBox="0 0 24 24" class="tool-ico" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s-7-7-7-12a7 7 0 0 1 14 0c0 5-7 12-7 12z"/><circle cx="12" cy="10" r="2.5"/></svg>
-    <span class="tool-label">数値</span>
   </button>
-  <button class="tool-btn" data-tool="L">
+  <button class="tool-btn" data-tool="L" aria-label="Lコーナー補強">
     <svg viewBox="0 0 72 72" class="tool-ico-stamp"><path d="M 18 14 L 18 58 L 58 58" fill="none" stroke="#1d4ed8" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    <span class="tool-label">Lコーナー補強</span>
   </button>
-  <button class="tool-btn" data-tool="U">
+  <button class="tool-btn" data-tool="U" aria-label="コ端部筋">
     <svg viewBox="0 0 72 72" class="tool-ico-stamp"><path d="M 26 14 L 56 14 L 56 58 L 26 58" fill="none" stroke="#1d4ed8" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    <span class="tool-label">コ端部筋</span>
   </button>
-  <button class="tool-btn" data-tool="line">
+  <button class="tool-btn" data-tool="line" aria-label="ジョイント">
     <svg viewBox="0 0 72 72" class="tool-ico-stamp"><path d="M 8 36 L 64 36" fill="none" stroke="#1d4ed8" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    <span class="tool-label">ジョイント</span>
   </button>
-  <button class="tool-btn" data-tool="delete">
+  <button class="tool-btn" data-tool="delete" aria-label="削除">
     <svg viewBox="0 0 24 24" class="tool-ico" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6M10 11v6M14 11v6"/></svg>
-    <span class="tool-label">削除</span>
   </button>
 </div>
 
@@ -1012,6 +1014,8 @@
       <div class="value-num" id="valueNum"><span class="cursor"></span></div>
       <div class="value-unit">mm</div>
     </div>
+
+    <div class="basis-line" id="heightBasis"></div>
 
     <div class="numpad">
       <button class="numkey" data-key="7">7</button>
@@ -13200,6 +13204,17 @@ const HEIGHT_ITEMS = [
   { key: 'm12',      label: 'M12' },
   { key: 'anchor',   label: 'アンカー' }
 ];
+
+// 自動計算のデフォルト式（base=依存項目, delta=加算する数）
+const HEIGHT_FORMULAS = {
+  kiso:     { base: 'gl',   delta: -420, label: 'GL − 420' },
+  sutecon1: { base: 'gl',   delta:  150, label: 'GL + 150' },
+  slab:     { base: 'gl',   delta:  -30, label: 'GL − 30' },
+  m16:      { base: 'kiso', delta:  -40, label: '基礎天端 − 40' },
+  m12:      { base: 'kiso', delta: -145, label: '基礎天端 − 145' },
+  anchor:   { base: 'kiso', delta: -120, label: '基礎天端 − 120' }
+};
+
 let heightValues = {};
 let modalMode = 'pin';
 let editingHeightKey = null;
@@ -13213,6 +13228,7 @@ let draggingStampEl = null;
 let draggingPin = null;
 let draggingPinEl = null;
 let dragGrabDX = 0, dragGrabDY = 0;
+let lastTapDt = 0;
 
 const canvas = document.getElementById('pdfCanvas');
 const ctx = canvas.getContext('2d');
@@ -13516,6 +13532,7 @@ canvasArea.addEventListener('touchend', e => {
     const dy = e.changedTouches[0].clientY - tapStart.y;
     const dt = Date.now() - tapStart.t;
     if (Math.abs(dx) < 8 && Math.abs(dy) < 8 && dt < 350) {
+      lastTapDt = dt;
       handleTap(e.changedTouches[0]);
     }
   }
@@ -13601,6 +13618,7 @@ function handleTap(touch) {
   if (activeTool === 'pin') {
     openNewModal(xRatio, yRatio);
   } else {
+    if (lastTapDt < 60) return;   // 早すぎるタップは誤操作とみなして無視
     stamps.push({ id: stampIdCounter++, pageNum: currentPage, xRatio, yRatio, type: activeTool, rotIndex: 0 });
     renderStamps();
   }
@@ -13713,10 +13731,42 @@ function openHeightInput(key) {
   editingPinId = null;
   pendingPinPos = null;
   const item = HEIGHT_ITEMS.find(h => h.key === key);
-  inputBuffer = heightValues[key] || '';
+  const formula = HEIGHT_FORMULAS[key];
+
+  // デフォルト値の計算（依存項目から）
+  let defaultValue = null;
+  if (formula) {
+    const baseVal = parseFloat(heightValues[formula.base]);
+    if (!isNaN(baseVal)) defaultValue = baseVal + formula.delta;
+  }
+
+  // 既存値があればそれを優先、なければデフォルト、なければ空
+  if (heightValues[key]) {
+    inputBuffer = heightValues[key];
+  } else if (defaultValue !== null) {
+    inputBuffer = String(defaultValue);
+  } else {
+    inputBuffer = '';
+  }
+
   document.querySelector('#pinModal .modal').classList.add('height-mode');
   document.getElementById('modalPinNum').textContent = '📐 ' + (item ? item.label : '');
   document.getElementById('btnDeletePin').style.display = 'none';
+
+  // 根拠表示
+  const basisEl = document.getElementById('heightBasis');
+  if (formula) {
+    if (defaultValue !== null) {
+      basisEl.textContent = `${formula.label} = ${defaultValue}（修正可）`;
+    } else {
+      const baseItem = HEIGHT_ITEMS.find(h => h.key === formula.base);
+      const baseName = baseItem ? baseItem.label : formula.base;
+      basisEl.textContent = `${formula.label}（${baseName} を入力するとデフォルト表示）`;
+    }
+  } else {
+    basisEl.textContent = '';
+  }
+
   updateValueDisplay();
   openModal();
 }
