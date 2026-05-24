@@ -1030,6 +1030,26 @@
     font-size: 11px;
     color: var(--text3);
   }
+  /* deepExtends: sutecon 行に追加表示する深基礎エントリ */
+  .height-row.row-with-extras {
+    flex-wrap: wrap;
+    row-gap: 6px;
+  }
+  .deep-extras {
+    flex-basis: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 2px;
+    padding-top: 6px;
+    border-top: 1px dashed var(--border);
+  }
+  .deep-entry {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    justify-content: flex-end;
+  }
 
   .sign-toggle {
     border: none;
@@ -13490,8 +13510,7 @@ const HEIGHT_ITEMS = [
   { key: 'bmEcho',   label: 'BM',                 section: 'auto', kind: 'echo', source: 'bm' },
   { key: 'glEcho',   label: 'GL',                 section: 'auto', kind: 'echo', source: 'gl' },
   { key: 'kiso',     label: '基礎天端',           section: 'auto', kind: 'offset', base: 'gl',   formula: 'signed' },
-  { key: 'sutecon',  label: '捨コン・砕石天端',   section: 'auto', kind: 'offset', base: 'gl',   formula: 'signed' },
-  { key: 'deepSute', label: '深基礎 捨コン・砕石天端', section: 'auto', kind: 'multiOffset', bases: ['deep1','deep2','deep3'] },
+  { key: 'sutecon',  label: '捨コン・砕石天端',   section: 'auto', kind: 'offset', base: 'gl',   formula: 'signed', deepExtends: ['deep1','deep2','deep3'] },
   { key: 'slab',     label: 'スラブ天端',         section: 'auto', kind: 'offset', base: 'gl',   formula: 'signed' },
   { key: 'm16',      label: 'M16',                section: 'auto', kind: 'offset', base: 'kiso', formula: 'signed' },
   { key: 'm12',      label: 'M12',                section: 'auto', kind: 'offset', base: 'kiso', formula: 'signed' },
@@ -13503,7 +13522,7 @@ const HEIGHT_ITEMS = [
 const HEIGHT_OFFSET_DEFAULTS = {
   kiso:     420,   // 基礎天端 = GL+420（標高）→ 値 = GL − 420
   sutecon:  -150,  // 捨コン・砕石天端 = GL−150（標高）→ 値 = GL + 150
-  deepSute: 150,   // 深基礎 捨コン・砕石天端：各深基礎から 150mm 下（砕石厚）
+                   // ※ この絶対値(150)を「砕石厚」として 深基礎①②③にも適用
   slab:     30,    // スラブ天端 = GL+30
   m16:      40,    // M16 = 基礎天端+40
   m12:      145,   // M12 = 基礎天端+145
@@ -13543,21 +13562,22 @@ function getEffective(key) {
   }
   return getComputed(key);
 }
-// multiOffset 用：GL 起点で per-entry に式と値を返す
-// 各 base（深基礎①②③）の入力値 + 砕石厚（deepSute の係数）を GL から引く
-function getMultiValues(key) {
-  const item = HEIGHT_ITEMS.find(i => i.key === key);
-  if (!item || item.kind !== 'multiOffset') return [];
-  const adj = getOffset(key);  // 砕石厚（デフォルト 150）
-  if (adj === null) return [];
+// deepExtends 用：sutecon に紐づく深基礎①②③ の per-entry 値を返す
+// 各 base（深基礎）の入力値 + 砕石厚(|sutecon|) を GL から引く
+function getDeepExtensions(parentKey) {
+  const item = HEIGHT_ITEMS.find(i => i.key === parentKey);
+  if (!item || !item.deepExtends) return [];
+  const parentOff = getOffset(parentKey);  // 例: sutecon = -150
+  if (parentOff === null) return [];
+  const adj = Math.abs(parentOff);   // 砕石厚 150
   const glVal = getEffective('gl');
   if (glVal === null) return [];
   const out = [];
-  item.bases.forEach((bk, i) => {
-    const baseOff = getOffset(bk);  // 各深基礎の入力数値
+  item.deepExtends.forEach(bk => {
+    const baseOff = getOffset(bk);
     if (baseOff === null) return;
     const baseItem = HEIGHT_ITEMS.find(h => h.key === bk);
-    const totalOff = baseOff + adj;  // GL から引く総量
+    const totalOff = baseOff + adj;
     out.push({
       baseKey: bk,
       baseLabel: baseItem ? baseItem.label : bk,
@@ -14090,40 +14110,6 @@ function renderHeightRows() {
       body.appendChild(header);
     }
 
-    // ---------- multiOffset（深基礎捨コン・砕石天端） ----------
-    if (item.kind === 'multiOffset') {
-      const arr = getMultiValues(item.key);
-      const hasAny = arr.length > 0;
-      if (hasAny) filled++;
-      total++;
-      const row = document.createElement('div');
-      row.className = 'height-row multi-row';
-
-      const left = document.createElement('div');
-      left.className = 'height-left';
-      const lbl = document.createElement('div');
-      lbl.className = 'height-label';
-      lbl.textContent = item.label;
-      left.appendChild(lbl);
-      row.appendChild(left);
-
-      const val = document.createElement('div');
-      val.className = 'height-multi-values' + (hasAny ? '' : ' empty');
-      if (hasAny) {
-        val.innerHTML = arr.map(e => `
-          <div class="multi-entry">
-            <span class="multi-tag">${e.baseLabel}</span>
-            <span class="multi-formula">${e.formula}</span>
-            <span class="multi-num">${e.value}<span class="multi-unit">mm</span></span>
-          </div>`).join('');
-      } else {
-        val.textContent = '深基礎を入れると自動表示';
-      }
-      row.appendChild(val);
-      body.appendChild(row);
-      return;
-    }
-
     // ---------- 入力セクション（インライン入力スタイル） ----------
     if (item.section === 'input') {
       const v = getEffective(item.key);
@@ -14229,6 +14215,25 @@ function renderHeightRows() {
     } else {
       row.addEventListener('click', () => openHeightInput(item.key));
     }
+
+    // deepExtends：深基礎エントリを行内の値の下に追加
+    if (item.deepExtends) {
+      const deeps = getDeepExtensions(item.key);
+      if (deeps.length > 0) {
+        const extras = document.createElement('div');
+        extras.className = 'deep-extras';
+        extras.innerHTML = deeps.map(e => `
+          <div class="deep-entry">
+            <span class="multi-tag">${e.baseLabel}</span>
+            <span class="multi-formula">${e.formula}</span>
+            <span class="multi-num">${e.value}<span class="multi-unit">mm</span></span>
+          </div>`).join('');
+        // row は flex 一行レイアウト。深基礎は別行なので row を縦flex の wrapper に組み替える
+        row.classList.add('row-with-extras');
+        row.appendChild(extras);
+      }
+    }
+
     body.appendChild(row);
   });
   document.getElementById('heightTitle').textContent = `高さ記録 (${filled}/${total})`;
@@ -14705,7 +14710,6 @@ function roundRect(ctx, x, y, w, h, r) {
 async function exportPDF() {
   const heightFilled = HEIGHT_ITEMS.some(it => {
     if (it.kind === 'echo') return false;
-    if (it.kind === 'multiOffset') return getMultiValues(it.key).length > 0;
     return getEffective(it.key) !== null;
   });
   if (!loaded || (pins.length === 0 && !heightFilled)) {
@@ -14793,25 +14797,20 @@ async function exportPDF() {
     // --- 高さ記録（自動表示セクションを出力） ---
     let heightRows = '';
     HEIGHT_ITEMS.filter(it => it.section === 'auto').forEach(it => {
-      if (it.kind === 'multiOffset') {
-        const arr = getMultiValues(it.key);
-        if (arr.length === 0) {
-          heightRows += `<tr><td>${it.label}</td><td class="empty">—</td></tr>`;
-        } else {
-          arr.forEach(e => {
-            heightRows += `<tr>
-              <td>${it.label} <span style="color:#666;font-size:12px;">(${e.baseLabel} ${e.formula})</span></td>
-              <td class="val">${e.value} mm</td>
-            </tr>`;
-          });
-        }
-      } else {
-        const v = getEffective(it.key);
-        const hasV = v !== null;
-        heightRows += `<tr>
-          <td>${it.label}</td>
-          <td class="${hasV ? 'val' : 'empty'}">${hasV ? v + ' mm' : '—'}</td>
-        </tr>`;
+      const v = getEffective(it.key);
+      const hasV = v !== null;
+      heightRows += `<tr>
+        <td>${it.label}</td>
+        <td class="${hasV ? 'val' : 'empty'}">${hasV ? v + ' mm' : '—'}</td>
+      </tr>`;
+      // 深基礎エントリを直下に追加
+      if (it.deepExtends) {
+        getDeepExtensions(it.key).forEach(e => {
+          heightRows += `<tr>
+            <td style="padding-left:24px;">${it.label} <span style="color:#666;font-size:12px;">(${e.baseLabel} ${e.formula})</span></td>
+            <td class="val">${e.value} mm</td>
+          </tr>`;
+        });
       }
     });
     const heightSection = `<h2>高さ記録</h2>
