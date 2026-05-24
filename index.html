@@ -880,17 +880,36 @@
   .height-value {
     display: flex;
     align-items: baseline;
+    justify-content: flex-end;
     gap: 3px;
     color: var(--brand);
     flex-shrink: 0;
+    min-width: 96px;
   }
-  .height-num { font-size: 19px; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
-  .height-unit { font-size: 11px; font-weight: 600; color: var(--text2); }
+  .height-num {
+    font-size: 19px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+    text-align: right;
+    min-width: 58px;
+    display: inline-block;
+  }
+  .height-unit {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text2);
+    display: inline-block;
+    min-width: 18px;
+    text-align: left;
+  }
   .height-value.empty {
     font-size: 11px;
     font-weight: 600;
     color: var(--text3);
     letter-spacing: 0.02em;
+    text-align: right;
+    min-width: 96px;
   }
 
   .height-formula {
@@ -1023,9 +1042,23 @@
     letter-spacing: -0.01em;
     display: inline-flex;
     align-items: baseline;
-    gap: 2px;
+    justify-content: flex-end;
+    gap: 3px;
+    min-width: 96px;
   }
-  .multi-unit { font-size: 10px; font-weight: 600; color: var(--text2); }
+  .multi-num .deep-num-text {
+    text-align: right;
+    min-width: 58px;
+    display: inline-block;
+  }
+  .multi-unit {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text2);
+    display: inline-block;
+    min-width: 18px;
+    text-align: left;
+  }
   .height-multi-values.empty {
     font-size: 11px;
     color: var(--text3);
@@ -14226,7 +14259,7 @@ function renderHeightRows() {
           <div class="deep-entry">
             <span class="multi-tag">${e.baseLabel}</span>
             <span class="multi-formula">${e.formula}</span>
-            <span class="multi-num">${e.value}<span class="multi-unit">mm</span></span>
+            <span class="multi-num"><span class="deep-num-text">${e.value}</span><span class="multi-unit">mm</span></span>
           </div>`).join('');
         // row は flex 一行レイアウト。深基礎は別行なので row を縦flex の wrapper に組み替える
         row.classList.add('row-with-extras');
