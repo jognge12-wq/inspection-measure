@@ -884,15 +884,15 @@
     gap: 3px;
     color: var(--brand);
     flex-shrink: 0;
-    min-width: 96px;
+    min-width: 82px;
   }
   .height-num {
-    font-size: 19px;
+    font-size: 18px;
     font-weight: 800;
     font-variant-numeric: tabular-nums;
     letter-spacing: -0.01em;
     text-align: right;
-    min-width: 58px;
+    min-width: 52px;
     display: inline-block;
   }
   .height-unit {
@@ -927,26 +927,35 @@
     align-self: center;
     border: 1px solid transparent;
   }
-  /* 自動行：[label] [chip] [value] を1行に */
+  /* 自動行：[label(固定118px)] [chip] [value] を1行に。
+     チップの左端が縦揃い、値は右端揃い */
   .height-row.row-auto {
-    padding: 10px 14px;
+    padding: 10px 12px;
     min-height: 44px;
+    gap: 8px;
   }
   .height-row.row-auto .height-label {
-    flex: 0 0 auto;
-    min-width: 76px;
+    flex: 0 0 118px;
+    width: 118px;
     font-size: 13px;
     font-weight: 700;
+    line-height: 1.25;
   }
   .height-row.row-auto .height-formula {
+    flex: 0 0 auto;
     margin-right: auto;
+    max-width: 108px;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .height-row.row-echo {
-    padding: 10px 14px;
+    padding: 10px 12px;
     min-height: 44px;
+    gap: 8px;
   }
   .height-row.row-echo .height-label {
-    flex: 1;
+    flex: 0 0 118px;
+    width: 118px;
     font-size: 13px;
     font-weight: 700;
   }
@@ -1035,7 +1044,7 @@
     font-variant-numeric: tabular-nums;
   }
   .multi-num {
-    font-size: 16px;
+    font-size: 15px;
     font-weight: 800;
     color: var(--brand);
     font-variant-numeric: tabular-nums;
@@ -1044,11 +1053,11 @@
     align-items: baseline;
     justify-content: flex-end;
     gap: 3px;
-    min-width: 96px;
+    min-width: 82px;
   }
   .multi-num .deep-num-text {
     text-align: right;
-    min-width: 58px;
+    min-width: 52px;
     display: inline-block;
   }
   .multi-unit {
