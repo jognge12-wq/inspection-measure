@@ -516,22 +516,22 @@
     margin-top: 2px;
   }
 
-  /* テンキー */
+  /* テンキー（4列：数字+四則計算） */
   .numpad {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 8px;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 7px;
     margin-bottom: 14px;
   }
 
   .numkey {
-    height: 64px;
+    height: 54px;
     border-radius: 12px;
     touch-action: manipulation;
     border: none;
     background: var(--surface2);
     color: var(--ink);
-    font-size: 22px;
+    font-size: 20px;
     font-weight: 700;
     cursor: pointer;
     font-family: inherit;
@@ -543,9 +543,17 @@
 
   .numkey:active { background: var(--brand); color: #fff; transform: scale(0.95); }
   .numkey.del { font-size: 18px; color: var(--text2); }
-  .numkey.dot { font-size: 26px; }
+  .numkey.dot { font-size: 24px; }
+  .numkey.op {
+    background: var(--brand-soft);
+    color: var(--brand-ink);
+    font-size: 22px;
+    font-weight: 800;
+  }
+  .numkey.op:active { background: var(--brand); color: #fff; }
   .numkey.clear-val { background: var(--red-l); color: var(--red); font-size: 14px; font-weight: 700; }
   .numkey.clear-val:active { background: var(--red); color: #fff; }
+  .eval-result { font-size: 18px; color: var(--text2); margin-left: 8px; font-weight: 600; }
 
   /* アクションボタン */
   .modal-actions {
@@ -959,6 +967,7 @@
     font-size: 13px;
     font-weight: 700;
   }
+  .height-row.row-echo .height-value { margin-left: auto; }
   .height-formula:active { opacity: 0.7; }
   .height-formula.empty {
     background: var(--surface);
@@ -1091,6 +1100,11 @@
     align-items: baseline;
     gap: 8px;
     justify-content: flex-end;
+    padding-right: 0;
+  }
+  .deep-entry .multi-num {
+    /* main 行の .height-value と同じ min-width で右端を揃える */
+    min-width: 82px;
   }
 
   .sign-toggle {
@@ -1366,15 +1380,20 @@
       <button class="numkey" data-key="7">7</button>
       <button class="numkey" data-key="8">8</button>
       <button class="numkey" data-key="9">9</button>
+      <button class="numkey op" data-key="÷">÷</button>
       <button class="numkey" data-key="4">4</button>
       <button class="numkey" data-key="5">5</button>
       <button class="numkey" data-key="6">6</button>
+      <button class="numkey op" data-key="×">×</button>
       <button class="numkey" data-key="1">1</button>
       <button class="numkey" data-key="2">2</button>
       <button class="numkey" data-key="3">3</button>
-      <button class="numkey clear-val" data-key="clear">C</button>
+      <button class="numkey op" data-key="-">-</button>
       <button class="numkey" data-key="0">0</button>
+      <button class="numkey dot" data-key=".">.</button>
       <button class="numkey del" data-key="del">⌫</button>
+      <button class="numkey op" data-key="+">+</button>
+      <button class="numkey clear-val" data-key="clear" style="grid-column: span 4;">クリア</button>
     </div>
 
     <div class="modal-actions">
@@ -13543,7 +13562,7 @@ const HEIGHT_ITEMS = [
   // formula: 'plus'  → 「base + 入力数値」表記（標高表記）、値 = base − 入力数値
   // formula: 'signed' → 係数の符号で +/− を切替（自動項目）
   { key: 'bm',       label: 'BM',         section: 'input', kind: 'value' },
-  { key: 'gl',       label: 'GL',         section: 'input', kind: 'offset', base: 'bm',   formula: 'minus' },
+  { key: 'gl',       label: 'GL',         section: 'input', kind: 'offset', base: 'bm',   formula: 'plus' },
   { key: 'deep1',    label: '深基礎 ①',   section: 'input', kind: 'offset', base: 'gl',   formula: 'minus' },
   { key: 'deep2',    label: '深基礎 ②',   section: 'input', kind: 'offset', base: 'gl',   formula: 'minus' },
   { key: 'deep3',    label: '深基礎 ③',   section: 'input', kind: 'offset', base: 'gl',   formula: 'minus' },
@@ -13592,7 +13611,12 @@ function getComputed(key) {
     if (baseVal === null) return null;
     const off = getOffset(key);
     if (off === null) return null;
-    // 標高オフセットが正(上方)なら読みは小さくなる → 引く
+    // 入力セクションは literal math（表示と一致）：BM+300 → 1800、GL-400 → 1400
+    if (item.section === 'input') {
+      const mag = Math.abs(off);
+      return (item.formula === 'plus') ? baseVal + mag : baseVal - mag;
+    }
+    // 自動項目は標高オフセット → 読み = base − offset
     return baseVal - off;
   }
   return null;
@@ -13623,7 +13647,7 @@ function getDeepExtensions(parentKey) {
     out.push({
       baseKey: bk,
       baseLabel: baseItem ? baseItem.label : bk,
-      formula: `GL − ${totalOff}`,
+      formula: `GL - ${totalOff}`,
       totalOff: totalOff,
       value: glVal - totalOff
     });
@@ -13638,9 +13662,9 @@ function formatFormula(key) {
   const off = getOffset(key);
   if (off === null) return baseLabel + '+?';
   const mode = item.formula || 'signed';
-  if (mode === 'minus') return `${baseLabel} − ${Math.abs(off)}`;
+  if (mode === 'minus') return `${baseLabel} - ${Math.abs(off)}`;
   if (mode === 'plus')  return `${baseLabel} + ${Math.abs(off)}`;
-  return baseLabel + (off >= 0 ? '+' : '−') + Math.abs(off);
+  return baseLabel + (off >= 0 ? '+' : '-') + Math.abs(off);
 }
 
 // スタンプマーク
@@ -14143,7 +14167,7 @@ function renderHeightRows() {
       if (currentSection === 'input') {
         header.innerHTML = `
           <div class="height-section-title">入力する数値</div>
-          <div class="height-section-hint">数値欄をタップしてキーボードで入力</div>`;
+          <div class="height-section-hint">数値欄をタップで電卓を開く（四則計算もできます）</div>`;
       } else {
         header.innerHTML = `
           <div class="height-section-title">自動計算（係数で調整可）</div>
@@ -14174,7 +14198,7 @@ function renderHeightRows() {
         const baseItem = HEIGHT_ITEMS.find(h => h.key === item.base);
         const baseLabel = baseItem ? baseItem.label : item.base;
         const mode = item.formula || 'minus';
-        const opStr = mode === 'plus' ? '＋' : '−';
+        const opStr = mode === 'plus' ? '+' : '-';
         formulaBox.innerHTML = `
           <span class="hf-base">${baseLabel}</span>
           <span class="hf-op">${opStr}</span>
@@ -14191,27 +14215,14 @@ function renderHeightRows() {
       }
       row.appendChild(formulaBox);
 
-      // インライン入力のイベント
+      // インライン入力欄：readonly にしてタップで数字+四則計算のモーダルを開く
       const inp = formulaBox.querySelector('.hf-input');
-      inp.addEventListener('focus', () => inp.select());
-      const commit = () => {
-        const raw = inp.value.trim();
-        const k = inp.dataset.key;
-        const m = inp.dataset.mode;
-        if (raw === '') {
-          if (m === 'value') delete heightValues[k];
-          else delete heightOffsets[k];
-        } else {
-          const n = parseFloat(raw);
-          if (!isNaN(n)) {
-            if (m === 'value') heightValues[k] = String(n);
-            else heightOffsets[k] = Math.abs(n);  // 符号は formula モードで決まるので絶対値で保持
-          }
-        }
-        renderHeightRows();
-      };
-      inp.addEventListener('blur', commit);
-      inp.addEventListener('keydown', ev => { if (ev.key === 'Enter') inp.blur(); });
+      inp.readOnly = true;
+      inp.addEventListener('click', e => {
+        e.preventDefault();
+        e.stopPropagation();
+        openHeightInput(inp.dataset.key);
+      });
 
       body.appendChild(row);
       return;
@@ -14340,19 +14351,19 @@ function startInlineOffsetEdit(chipEl, key) {
     // 符号固定：トグル無しの単純表示
     const signFx = document.createElement('span');
     signFx.className = 'sign-fixed';
-    signFx.textContent = sign > 0 ? '＋' : '−';
+    signFx.textContent = sign > 0 ? '+' : '-';
     wrap.appendChild(signFx);
   } else {
     const signBtn = document.createElement('button');
     signBtn.type = 'button';
     signBtn.className = 'sign-toggle';
-    signBtn.textContent = sign > 0 ? '＋' : '−';
+    signBtn.textContent = sign > 0 ? '+' : '-';
     signBtn.addEventListener('mousedown', e => e.preventDefault());
     signBtn.addEventListener('touchstart', e => e.preventDefault(), { passive: false });
     signBtn.addEventListener('click', e => {
       e.preventDefault();
       sign = -sign;
-      signBtn.textContent = sign > 0 ? '＋' : '−';
+      signBtn.textContent = sign > 0 ? '+' : '-';
     });
     wrap.appendChild(signBtn);
   }
@@ -14385,24 +14396,41 @@ function startInlineOffsetEdit(chipEl, key) {
   setTimeout(() => { input.focus(); input.select(); }, 0);
 }
 
+let editingHeightMode = 'value';   // 'value' | 'offset'
 function openHeightInput(key) {
   modalMode = 'height';
   editingHeightKey = key;
   editingPinId = null;
   pendingPinPos = null;
   const item = HEIGHT_ITEMS.find(h => h.key === key);
-  const effective = getEffective(key);
-  inputBuffer = effective !== null ? String(effective) : '';
+
+  // 入力セクションの offset 項目は、offset(magnitude) を編集する
+  if (item && item.section === 'input' && item.kind === 'offset') {
+    editingHeightMode = 'offset';
+    const off = getOffset(key);
+    inputBuffer = off !== null ? String(Math.abs(off)) : '';
+  } else {
+    editingHeightMode = 'value';
+    const effective = getEffective(key);
+    inputBuffer = effective !== null ? String(effective) : '';
+  }
 
   document.querySelector('#pinModal .modal').classList.add('height-mode');
-  document.getElementById('modalPinNum').textContent = '📐 ' + (item ? item.label : '');
+
+  // タイトル：BM/値項目は label のみ、offset 項目は「GL（BM + ?）」のように式付き
+  let title = '📐 ' + (item ? item.label : '');
+  if (editingHeightMode === 'offset') {
+    const baseItem = HEIGHT_ITEMS.find(h => h.key === item.base);
+    const baseLabel = baseItem ? baseItem.label : item.base;
+    const op = item.formula === 'plus' ? '+' : '-';
+    title = `📐 ${item.label}（${baseLabel} ${op} 入力値）`;
+  }
+  document.getElementById('modalPinNum').textContent = title;
   document.getElementById('btnDeletePin').style.display = 'none';
 
   const basisEl = document.getElementById('heightBasis');
-  if (item && item.kind === 'offset' && getOffset(key) !== null) {
+  if (item && item.section === 'auto' && item.kind === 'offset' && getOffset(key) !== null) {
     basisEl.textContent = `${formatFormula(key)}（係数チップで変更／値を直接上書きも可）`;
-  } else if (item && item.kind === 'offset') {
-    basisEl.textContent = '係数チップで「基準＋数値」を設定してください';
   } else {
     basisEl.textContent = '';
   }
@@ -14420,19 +14448,58 @@ document.querySelectorAll('.numkey').forEach(key => {
     } else if (k === 'clear') {
       inputBuffer = '';
     } else if (k === '.') {
-      if (!inputBuffer.includes('.')) inputBuffer += '.';
+      // 直前の数字列に '.' が無い場合のみ追加
+      const tail = inputBuffer.split(/[+\-×÷]/).pop();
+      if (!tail.includes('.')) inputBuffer += '.';
+    } else if (k === '+' || k === '-' || k === '×' || k === '÷') {
+      // 連続演算子は上書き、先頭ならマイナスのみ許可
+      const last = inputBuffer.slice(-1);
+      if (inputBuffer === '' && k !== '-') return;
+      if ('+-×÷'.includes(last)) inputBuffer = inputBuffer.slice(0, -1) + k;
+      else inputBuffer += k;
     } else {
-      if (inputBuffer.length < 8) inputBuffer += k;
+      if (inputBuffer.length < 16) inputBuffer += k;
     }
     updateValueDisplay();
   });
 });
 
+// 式評価（× ÷ − は半角に正規化し、数字+演算子のみ許可して new Function で評価）
+function evalExpression(expr) {
+  if (!expr) return null;
+  let s = String(expr).trim();
+  // 末尾の演算子を捨てる
+  while (s.length && '+-×÷*/'.includes(s.slice(-1))) s = s.slice(0, -1);
+  if (!s) return null;
+  // 単純な数字ならそのまま
+  if (/^-?\d+(\.\d+)?$/.test(s)) {
+    const n = parseFloat(s);
+    return isNaN(n) ? null : n;
+  }
+  const norm = s.replace(/×/g, '*').replace(/÷/g, '/').replace(/−/g, '-');
+  if (!/^[\d+\-*/.\s]+$/.test(norm)) return null;
+  try {
+    const v = Function('"use strict"; return (' + norm + ')')();
+    if (typeof v !== 'number' || isNaN(v) || !isFinite(v)) return null;
+    // 小数点以下があれば四捨五入で整数化（mm 単位を想定）
+    return Math.round(v);
+  } catch (e) {
+    return null;
+  }
+}
+
 function updateValueDisplay() {
   const disp = document.getElementById('valueNum');
   const box = document.getElementById('valueDisplay');
   if (inputBuffer) {
-    disp.innerHTML = inputBuffer + '<span class="cursor"></span>';
+    // 式と評価結果を表示
+    const hasOp = /[+\-×÷*/]/.test(inputBuffer.slice(1));
+    const v = hasOp ? evalExpression(inputBuffer) : null;
+    let html = inputBuffer + '<span class="cursor"></span>';
+    if (hasOp && v !== null) {
+      html += `<span class="eval-result"> = ${v}</span>`;
+    }
+    disp.innerHTML = html;
     box.classList.add('has-value');
   } else {
     disp.innerHTML = '<span class="cursor"></span>';
@@ -14443,16 +14510,27 @@ function updateValueDisplay() {
 // Save pin
 document.getElementById('btnSavePin').addEventListener('click', () => {
   if (modalMode === 'height') {
-    const v = inputBuffer;
-    if (v === '') {
-      delete heightValues[editingHeightKey];
+    const expr = inputBuffer;
+    const evaluated = expr === '' ? null : evalExpression(expr);
+    const item = HEIGHT_ITEMS.find(h => h.key === editingHeightKey);
+    if (editingHeightMode === 'offset') {
+      // 入力項目の offset を編集中
+      if (evaluated === null) {
+        delete heightOffsets[editingHeightKey];
+      } else {
+        heightOffsets[editingHeightKey] = Math.abs(evaluated);
+      }
     } else {
-      const computed = getComputed(editingHeightKey);
-      if (computed !== null && parseFloat(v) === computed) {
-        // 自動計算値と同じ → 手動上書きは保存しない（依存変更で追従できるように）
+      // 値そのものを編集（BM や 自動行の上書き）
+      if (evaluated === null) {
         delete heightValues[editingHeightKey];
       } else {
-        heightValues[editingHeightKey] = v;
+        const computed = getComputed(editingHeightKey);
+        if (computed !== null && evaluated === computed) {
+          delete heightValues[editingHeightKey];  // 自動値と同じなら手動上書きをクリア
+        } else {
+          heightValues[editingHeightKey] = String(evaluated);
+        }
       }
     }
     closeModal();
