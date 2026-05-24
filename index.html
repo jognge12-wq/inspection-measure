@@ -13582,8 +13582,9 @@ const HEIGHT_ITEMS = [
   // === 自動計算（係数チップで調整可）===
   { key: 'bmEcho',   label: 'BM',                 section: 'auto', kind: 'echo', source: 'bm' },
   { key: 'glEcho',   label: 'GL',                 section: 'auto', kind: 'echo', source: 'gl' },
-  { key: 'kiso',     label: '基礎天端',           section: 'auto', kind: 'offset', base: 'gl',   formula: 'signed' },
-  { key: 'sutecon',  label: '捨コン・砕石天端',   section: 'auto', kind: 'offset', base: 'gl',   formula: 'signed', deepExtends: ['deep1','deep2','deep3'] },
+  { key: 'kiso',         label: '基礎天端',           section: 'auto', kind: 'offset', base: 'gl',   formula: 'signed' },
+  { key: 'choubariEcho', label: '丁張り天端',         section: 'auto', kind: 'echo',   source: 'choubari', showChip: true },
+  { key: 'sutecon',      label: '捨コン・砕石天端',   section: 'auto', kind: 'offset', base: 'gl',   formula: 'signed', deepExtends: ['deep1','deep2','deep3'] },
   { key: 'slab',     label: 'スラブ天端',         section: 'auto', kind: 'offset', base: 'gl',   formula: 'signed' },
   { key: 'm16',      label: 'M16',                section: 'auto', kind: 'offset', base: 'kiso', formula: 'signed' },
   { key: 'm12',      label: 'M12',                section: 'auto', kind: 'offset', base: 'kiso', formula: 'signed' },
@@ -14261,6 +14262,25 @@ function renderHeightRows() {
         startInlineOffsetEdit(chip, item.key);
       });
       row.appendChild(chip);
+    } else if (item.kind === 'echo' && item.showChip) {
+      // 入力項目のチップをミラーして表示（読み取り専用）
+      const sourceItem = HEIGHT_ITEMS.find(h => h.key === item.source);
+      if (sourceItem && sourceItem.kind === 'offset') {
+        const chip = document.createElement('div');
+        chip.className = 'height-formula';
+        const off = getOffset(item.source);
+        if (off === null) {
+          const baseItem = HEIGHT_ITEMS.find(h => h.key === sourceItem.base);
+          const baseLabel = baseItem ? baseItem.label : sourceItem.base;
+          const opStr = sourceItem.formula === 'plus' ? '+' : '-';
+          chip.textContent = `${baseLabel} ${opStr} ?`;
+          chip.classList.add('empty');
+        } else {
+          chip.textContent = formatFormula(item.source);
+        }
+        chip.style.cursor = 'default';
+        row.appendChild(chip);
+      }
     }
 
     const val = document.createElement('div');
