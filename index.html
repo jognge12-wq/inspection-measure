@@ -13581,7 +13581,7 @@ const HEIGHT_ITEMS = [
   { key: 'choubari', label: '丁張り天端', section: 'input', kind: 'offset', base: 'kiso', formula: 'plus'  },
   // === 自動計算（係数チップで調整可）===
   { key: 'bmEcho',   label: 'BM',                 section: 'auto', kind: 'echo', source: 'bm' },
-  { key: 'glEcho',   label: 'GL',                 section: 'auto', kind: 'echo', source: 'gl' },
+  { key: 'glEcho',   label: 'GL',                 section: 'auto', kind: 'echo', source: 'gl', showChip: true },
   { key: 'kiso',         label: '基礎天端',           section: 'auto', kind: 'offset', base: 'gl',   formula: 'signed' },
   { key: 'choubariEcho', label: '丁張り天端',         section: 'auto', kind: 'echo',   source: 'choubari', showChip: true },
   { key: 'sutecon',      label: '捨コン・砕石天端',   section: 'auto', kind: 'offset', base: 'gl',   formula: 'signed', deepExtends: ['deep1','deep2','deep3'] },
