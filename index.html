@@ -789,30 +789,34 @@
     background: var(--surface);
     border-color: var(--border);
     border-left: 3px solid var(--brand);
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     cursor: default;
     align-items: center;
-    padding: 14px 14px 14px 12px;
+    padding: 10px 12px 10px 10px;
+    gap: 10px;
+    min-height: 48px;
   }
   .height-row.row-input:active { transform: none; background: var(--surface); }
   .height-row.row-input .height-label {
     flex: 0 0 auto;
-    min-width: 88px;
+    min-width: 76px;
     font-size: 14px;
   }
   .height-formula-line {
     flex: 1;
     display: flex;
     align-items: center;
-    gap: 6px;
-    flex-wrap: wrap;
+    gap: 5px;
+    flex-wrap: nowrap;     /* 1行固定。狭ければ input が縮む */
     font-size: 14px;
     color: var(--text1);
+    min-width: 0;
   }
   .hf-base {
     color: var(--text2);
     font-weight: 700;
     font-size: 13px;
+    white-space: nowrap;
   }
   .hf-op {
     font-size: 16px;
@@ -821,11 +825,14 @@
     padding: 0 1px;
   }
   .hf-input {
-    width: 5em;
+    flex: 1;
+    min-width: 0;
+    width: 100%;
+    max-width: 7em;
     border: none;
     background: var(--surface2);
     border-radius: 8px;
-    padding: 6px 10px;
+    padding: 7px 8px;
     font-size: 16px;
     font-weight: 700;
     color: var(--ink);
@@ -841,25 +848,13 @@
     box-shadow: inset 0 0 0 2px var(--brand);
   }
   .hf-input::placeholder { color: var(--text3); font-weight: 500; }
-  .hf-input-wide { width: 6.5em; }
+  .hf-input-wide { max-width: 9em; }
   .hf-unit {
     font-size: 11px;
     color: var(--text2);
     font-weight: 600;
+    white-space: nowrap;
   }
-  .hf-arrow {
-    color: var(--text3);
-    margin: 0 4px;
-    font-size: 13px;
-  }
-  .hf-result {
-    font-size: 16px;
-    font-weight: 800;
-    color: var(--brand);
-    font-variant-numeric: tabular-nums;
-    letter-spacing: -0.01em;
-  }
-  .hf-result.empty { color: var(--text3); font-size: 13px; font-weight: 600; }
   /* echo 行は静的・薄め */
   .height-row.row-echo {
     background: var(--surface2);
@@ -910,8 +905,31 @@
     cursor: pointer;
     user-select: none;
     touch-action: manipulation;
-    align-self: flex-start;
+    align-self: center;
     border: 1px solid transparent;
+  }
+  /* 自動行：[label] [chip] [value] を1行に */
+  .height-row.row-auto {
+    padding: 10px 14px;
+    min-height: 44px;
+  }
+  .height-row.row-auto .height-label {
+    flex: 0 0 auto;
+    min-width: 76px;
+    font-size: 13px;
+    font-weight: 700;
+  }
+  .height-row.row-auto .height-formula {
+    margin-right: auto;
+  }
+  .height-row.row-echo {
+    padding: 10px 14px;
+    min-height: 44px;
+  }
+  .height-row.row-echo .height-label {
+    flex: 1;
+    font-size: 13px;
+    font-weight: 700;
   }
   .height-formula:active { opacity: 0.7; }
   .height-formula.empty {
@@ -14087,16 +14105,6 @@ function renderHeightRows() {
       lbl.className = 'height-label';
       lbl.textContent = item.label;
       left.appendChild(lbl);
-      // 砕石厚（編集可）
-      const adj = getOffset(item.key);
-      const sub = document.createElement('div');
-      sub.className = 'multi-sub';
-      sub.innerHTML = `砕石厚 <span class="multi-adj-chip">${adj} mm</span>（タップで変更）`;
-      sub.querySelector('.multi-adj-chip').addEventListener('click', e => {
-        e.stopPropagation();
-        startInlineMagEdit(e.currentTarget, item.key);
-      });
-      left.appendChild(sub);
       row.appendChild(left);
 
       const val = document.createElement('div');
@@ -14143,9 +14151,7 @@ function renderHeightRows() {
           <span class="hf-base">${baseLabel}</span>
           <span class="hf-op">${opStr}</span>
           <input type="text" inputmode="numeric" pattern="[0-9]*" class="hf-input" placeholder="?" data-key="${item.key}" data-mode="offset" />
-          <span class="hf-unit">mm</span>
-          <span class="hf-arrow">→</span>
-          <span class="hf-result ${hasValue ? '' : 'empty'}">${hasValue ? v + ' mm' : '─'}</span>`;
+          <span class="hf-unit">mm</span>`;
         const off = getOffset(item.key);
         if (off !== null) formulaBox.querySelector('.hf-input').value = Math.abs(off);
       } else {
@@ -14183,22 +14189,20 @@ function renderHeightRows() {
       return;
     }
 
-    // ---------- 自動計算セクション ----------
+    // ---------- 自動計算セクション（label とチップを横並び） ----------
     const v = getEffective(item.key);
     const hasValue = v !== null;
     total++;
     if (hasValue) filled++;
 
     const row = document.createElement('div');
-    row.className = 'height-row';
+    row.className = 'height-row row-auto';
     if (item.kind === 'echo') row.classList.add('row-echo');
 
-    const left = document.createElement('div');
-    left.className = 'height-left';
     const label = document.createElement('div');
     label.className = 'height-label';
     label.textContent = item.label;
-    left.appendChild(label);
+    row.appendChild(label);
 
     if (item.kind === 'offset') {
       const chip = document.createElement('div');
@@ -14208,9 +14212,8 @@ function renderHeightRows() {
         e.stopPropagation();
         startInlineOffsetEdit(chip, item.key);
       });
-      left.appendChild(chip);
+      row.appendChild(chip);
     }
-    row.appendChild(left);
 
     const val = document.createElement('div');
     val.className = 'height-value' + (hasValue ? '' : ' empty');
