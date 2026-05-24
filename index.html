@@ -784,12 +784,82 @@
     min-height: 56px;
   }
   .height-row:active { transform: scale(0.99); background: var(--surface2); }
-  /* 入力行は薄緑トーンで「ここを触る」感を出す */
+  /* 入力行：白カード＋緑アクセントの左バー。インライン入力を主役に */
   .height-row.row-input {
-    background: var(--brand-softer);
-    border-color: var(--brand-line);
+    background: var(--surface);
+    border-color: var(--border);
+    border-left: 3px solid var(--brand);
+    flex-wrap: wrap;
+    cursor: default;
+    align-items: center;
+    padding: 14px 14px 14px 12px;
   }
-  .height-row.row-input:active { background: var(--brand-soft); }
+  .height-row.row-input:active { transform: none; background: var(--surface); }
+  .height-row.row-input .height-label {
+    flex: 0 0 auto;
+    min-width: 88px;
+    font-size: 14px;
+  }
+  .height-formula-line {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    font-size: 14px;
+    color: var(--text1);
+  }
+  .hf-base {
+    color: var(--text2);
+    font-weight: 700;
+    font-size: 13px;
+  }
+  .hf-op {
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--brand);
+    padding: 0 1px;
+  }
+  .hf-input {
+    width: 5em;
+    border: none;
+    background: var(--surface2);
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--ink);
+    text-align: center;
+    font-family: inherit;
+    font-variant-numeric: tabular-nums;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  .hf-input:focus {
+    outline: none;
+    background: var(--brand-softer);
+    box-shadow: inset 0 0 0 2px var(--brand);
+  }
+  .hf-input::placeholder { color: var(--text3); font-weight: 500; }
+  .hf-input-wide { width: 6.5em; }
+  .hf-unit {
+    font-size: 11px;
+    color: var(--text2);
+    font-weight: 600;
+  }
+  .hf-arrow {
+    color: var(--text3);
+    margin: 0 4px;
+    font-size: 13px;
+  }
+  .hf-result {
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--brand);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+  }
+  .hf-result.empty { color: var(--text3); font-size: 13px; font-weight: 600; }
   /* echo 行は静的・薄め */
   .height-row.row-echo {
     background: var(--surface2);
@@ -880,17 +950,35 @@
 
   /* 複数値表示（深基礎 捨コン） */
   .multi-row { align-items: flex-start; padding: 12px 14px; }
+  .multi-sub {
+    margin-top: 4px;
+    font-size: 11px;
+    color: var(--text3);
+  }
+  .multi-adj-chip {
+    display: inline-block;
+    background: var(--surface2);
+    color: var(--brand-ink);
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-variant-numeric: tabular-nums;
+    margin: 0 4px;
+  }
+  .multi-adj-chip:active { opacity: 0.7; }
+  .multi-adj-chip.editing { padding: 1px 4px; }
   .height-multi-values {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 6px;
     align-items: flex-end;
     flex-shrink: 0;
   }
   .multi-entry {
     display: inline-flex;
     align-items: baseline;
-    gap: 6px;
+    gap: 8px;
   }
   .multi-tag {
     font-size: 10px;
@@ -900,13 +988,26 @@
     padding: 1px 6px;
     border-radius: 4px;
   }
+  .multi-formula {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--brand-ink);
+    background: var(--brand-soft);
+    padding: 1px 7px;
+    border-radius: 999px;
+    font-variant-numeric: tabular-nums;
+  }
   .multi-num {
-    font-size: 15px;
+    font-size: 16px;
     font-weight: 800;
     color: var(--brand);
     font-variant-numeric: tabular-nums;
     letter-spacing: -0.01em;
+    display: inline-flex;
+    align-items: baseline;
+    gap: 2px;
   }
+  .multi-unit { font-size: 10px; font-weight: 600; color: var(--text2); }
   .height-multi-values.empty {
     font-size: 11px;
     color: var(--text3);
@@ -13358,30 +13459,33 @@ let inputBuffer = '';
 // 高さ記録フォーム（図面とは独立した定型記録）
 const HEIGHT_ITEMS = [
   // === 入力する数値 ===
+  // formula: 'minus' → 「base − 入力数値」表記、値 = base − 入力数値
+  // formula: 'plus'  → 「base + 入力数値」表記（標高表記）、値 = base − 入力数値
+  // formula: 'signed' → 係数の符号で +/− を切替（自動項目）
   { key: 'bm',       label: 'BM',         section: 'input', kind: 'value' },
-  { key: 'gl',       label: 'GL',         section: 'input', kind: 'offset', base: 'bm' },
-  { key: 'deep1',    label: '深基礎 ①',   section: 'input', kind: 'offset', base: 'gl', signFixed: -1 },
-  { key: 'deep2',    label: '深基礎 ②',   section: 'input', kind: 'offset', base: 'gl', signFixed: -1 },
-  { key: 'deep3',    label: '深基礎 ③',   section: 'input', kind: 'offset', base: 'gl', signFixed: -1 },
-  { key: 'choubari', label: '丁張り天端', section: 'input', kind: 'offset', base: 'kiso' },
+  { key: 'gl',       label: 'GL',         section: 'input', kind: 'offset', base: 'bm',   formula: 'minus' },
+  { key: 'deep1',    label: '深基礎 ①',   section: 'input', kind: 'offset', base: 'gl',   formula: 'minus' },
+  { key: 'deep2',    label: '深基礎 ②',   section: 'input', kind: 'offset', base: 'gl',   formula: 'minus' },
+  { key: 'deep3',    label: '深基礎 ③',   section: 'input', kind: 'offset', base: 'gl',   formula: 'minus' },
+  { key: 'choubari', label: '丁張り天端', section: 'input', kind: 'offset', base: 'kiso', formula: 'plus'  },
   // === 自動計算（係数チップで調整可）===
   { key: 'bmEcho',   label: 'BM',                 section: 'auto', kind: 'echo', source: 'bm' },
   { key: 'glEcho',   label: 'GL',                 section: 'auto', kind: 'echo', source: 'gl' },
-  { key: 'kiso',     label: '基礎天端',           section: 'auto', kind: 'offset', base: 'gl' },
-  { key: 'sutecon',  label: '捨コン・砕石天端',   section: 'auto', kind: 'offset', base: 'gl' },
+  { key: 'kiso',     label: '基礎天端',           section: 'auto', kind: 'offset', base: 'gl',   formula: 'signed' },
+  { key: 'sutecon',  label: '捨コン・砕石天端',   section: 'auto', kind: 'offset', base: 'gl',   formula: 'signed' },
   { key: 'deepSute', label: '深基礎 捨コン・砕石天端', section: 'auto', kind: 'multiOffset', bases: ['deep1','deep2','deep3'] },
-  { key: 'slab',     label: 'スラブ天端',         section: 'auto', kind: 'offset', base: 'gl' },
-  { key: 'm16',      label: 'M16',                section: 'auto', kind: 'offset', base: 'kiso' },
-  { key: 'm12',      label: 'M12',                section: 'auto', kind: 'offset', base: 'kiso' },
-  { key: 'anchor',   label: 'アンカー',           section: 'auto', kind: 'offset', base: 'kiso' }
+  { key: 'slab',     label: 'スラブ天端',         section: 'auto', kind: 'offset', base: 'gl',   formula: 'signed' },
+  { key: 'm16',      label: 'M16',                section: 'auto', kind: 'offset', base: 'kiso', formula: 'signed' },
+  { key: 'm12',      label: 'M12',                section: 'auto', kind: 'offset', base: 'kiso', formula: 'signed' },
+  { key: 'anchor',   label: 'アンカー',           section: 'auto', kind: 'offset', base: 'kiso', formula: 'signed' }
 ];
 
 // 自動計算のデフォルト式（base=依存項目, delta=加算する数）
 // 自動項目の係数デフォルト（符号付き標高オフセット）
 const HEIGHT_OFFSET_DEFAULTS = {
-  kiso:     420,   // 基礎天端 = GL+420
-  sutecon:  -150,  // 捨コン・砕石天端 = GL−150
-  deepSute: -150,  // 深基礎 捨コン・砕石天端 = 深基礎−150
+  kiso:     420,   // 基礎天端 = GL+420（標高）→ 値 = GL − 420
+  sutecon:  -150,  // 捨コン・砕石天端 = GL−150（標高）→ 値 = GL + 150
+  deepSute: 150,   // 深基礎 捨コン・砕石天端：各深基礎から 150mm 下（砕石厚）
   slab:     30,    // スラブ天端 = GL+30
   m16:      40,    // M16 = 基礎天端+40
   m12:      145,   // M12 = 基礎天端+145
@@ -13421,21 +13525,27 @@ function getEffective(key) {
   }
   return getComputed(key);
 }
-// multiOffset 用：複数ベースそれぞれにオフセットを適用した {label, value} 配列
+// multiOffset 用：GL 起点で per-entry に式と値を返す
+// 各 base（深基礎①②③）の入力値 + 砕石厚（deepSute の係数）を GL から引く
 function getMultiValues(key) {
   const item = HEIGHT_ITEMS.find(i => i.key === key);
   if (!item || item.kind !== 'multiOffset') return [];
-  const off = getOffset(key);
-  if (off === null) return [];
+  const adj = getOffset(key);  // 砕石厚（デフォルト 150）
+  if (adj === null) return [];
+  const glVal = getEffective('gl');
+  if (glVal === null) return [];
   const out = [];
   item.bases.forEach((bk, i) => {
-    const baseVal = getEffective(bk);
-    if (baseVal === null) return;
+    const baseOff = getOffset(bk);  // 各深基礎の入力数値
+    if (baseOff === null) return;
     const baseItem = HEIGHT_ITEMS.find(h => h.key === bk);
+    const totalOff = baseOff + adj;  // GL から引く総量
     out.push({
       baseKey: bk,
       baseLabel: baseItem ? baseItem.label : bk,
-      value: baseVal - off
+      formula: `GL − ${totalOff}`,
+      totalOff: totalOff,
+      value: glVal - totalOff
     });
   });
   return out;
@@ -13447,6 +13557,9 @@ function formatFormula(key) {
   const baseLabel = baseItem ? baseItem.label : item.base;
   const off = getOffset(key);
   if (off === null) return baseLabel + '+?';
+  const mode = item.formula || 'signed';
+  if (mode === 'minus') return `${baseLabel} − ${Math.abs(off)}`;
+  if (mode === 'plus')  return `${baseLabel} + ${Math.abs(off)}`;
   return baseLabel + (off >= 0 ? '+' : '−') + Math.abs(off);
 }
 
@@ -13950,16 +14063,16 @@ function renderHeightRows() {
       if (currentSection === 'input') {
         header.innerHTML = `
           <div class="height-section-title">入力する数値</div>
-          <div class="height-section-hint">行をタップで値を入れる／式チップをタップで「基準＋数値」を編集</div>`;
+          <div class="height-section-hint">数値欄をタップしてキーボードで入力</div>`;
       } else {
         header.innerHTML = `
           <div class="height-section-title">自動計算（係数で調整可）</div>
-          <div class="height-section-hint">式チップで係数を変えられます。値を直接上書きしたい時は行をタップ</div>`;
+          <div class="height-section-hint">係数チップをタップで式を編集／値を直接上書きしたい時は行をタップ</div>`;
       }
       body.appendChild(header);
     }
 
-    // multiOffset 行は特別扱い
+    // ---------- multiOffset（深基礎捨コン・砕石天端） ----------
     if (item.kind === 'multiOffset') {
       const arr = getMultiValues(item.key);
       const hasAny = arr.length > 0;
@@ -13974,28 +14087,27 @@ function renderHeightRows() {
       lbl.className = 'height-label';
       lbl.textContent = item.label;
       left.appendChild(lbl);
-      const chip = document.createElement('div');
-      chip.className = 'height-formula';
-      const off = getOffset(item.key);
-      if (off === null) {
-        chip.textContent = '深基礎 ＋ ___';
-        chip.classList.add('empty');
-      } else {
-        chip.textContent = '深基礎' + (off >= 0 ? '+' : '−') + Math.abs(off);
-      }
-      chip.addEventListener('click', e => {
+      // 砕石厚（編集可）
+      const adj = getOffset(item.key);
+      const sub = document.createElement('div');
+      sub.className = 'multi-sub';
+      sub.innerHTML = `砕石厚 <span class="multi-adj-chip">${adj} mm</span>（タップで変更）`;
+      sub.querySelector('.multi-adj-chip').addEventListener('click', e => {
         e.stopPropagation();
-        startInlineOffsetEdit(chip, item.key);
+        startInlineMagEdit(e.currentTarget, item.key);
       });
-      left.appendChild(chip);
+      left.appendChild(sub);
       row.appendChild(left);
 
       const val = document.createElement('div');
       val.className = 'height-multi-values' + (hasAny ? '' : ' empty');
       if (hasAny) {
-        val.innerHTML = arr.map(e =>
-          `<div class="multi-entry"><span class="multi-tag">${e.baseLabel}</span><span class="multi-num">${e.value} mm</span></div>`
-        ).join('');
+        val.innerHTML = arr.map(e => `
+          <div class="multi-entry">
+            <span class="multi-tag">${e.baseLabel}</span>
+            <span class="multi-formula">${e.formula}</span>
+            <span class="multi-num">${e.value}<span class="multi-unit">mm</span></span>
+          </div>`).join('');
       } else {
         val.textContent = '深基礎を入れると自動表示';
       }
@@ -14004,20 +14116,85 @@ function renderHeightRows() {
       return;
     }
 
+    // ---------- 入力セクション（インライン入力スタイル） ----------
+    if (item.section === 'input') {
+      const v = getEffective(item.key);
+      const hasValue = v !== null;
+      total++;
+      if (hasValue) filled++;
+
+      const row = document.createElement('div');
+      row.className = 'height-row row-input';
+
+      const label = document.createElement('div');
+      label.className = 'height-label';
+      label.textContent = item.label;
+      row.appendChild(label);
+
+      const formulaBox = document.createElement('div');
+      formulaBox.className = 'height-formula-line';
+
+      if (item.kind === 'offset') {
+        const baseItem = HEIGHT_ITEMS.find(h => h.key === item.base);
+        const baseLabel = baseItem ? baseItem.label : item.base;
+        const mode = item.formula || 'minus';
+        const opStr = mode === 'plus' ? '＋' : '−';
+        formulaBox.innerHTML = `
+          <span class="hf-base">${baseLabel}</span>
+          <span class="hf-op">${opStr}</span>
+          <input type="text" inputmode="numeric" pattern="[0-9]*" class="hf-input" placeholder="?" data-key="${item.key}" data-mode="offset" />
+          <span class="hf-unit">mm</span>
+          <span class="hf-arrow">→</span>
+          <span class="hf-result ${hasValue ? '' : 'empty'}">${hasValue ? v + ' mm' : '─'}</span>`;
+        const off = getOffset(item.key);
+        if (off !== null) formulaBox.querySelector('.hf-input').value = Math.abs(off);
+      } else {
+        // BM (kind=value)
+        formulaBox.innerHTML = `
+          <input type="text" inputmode="numeric" pattern="[0-9]*" class="hf-input hf-input-wide" placeholder="数値" data-key="${item.key}" data-mode="value" />
+          <span class="hf-unit">mm</span>`;
+        if (hasValue) formulaBox.querySelector('.hf-input').value = v;
+      }
+      row.appendChild(formulaBox);
+
+      // インライン入力のイベント
+      const inp = formulaBox.querySelector('.hf-input');
+      inp.addEventListener('focus', () => inp.select());
+      const commit = () => {
+        const raw = inp.value.trim();
+        const k = inp.dataset.key;
+        const m = inp.dataset.mode;
+        if (raw === '') {
+          if (m === 'value') delete heightValues[k];
+          else delete heightOffsets[k];
+        } else {
+          const n = parseFloat(raw);
+          if (!isNaN(n)) {
+            if (m === 'value') heightValues[k] = String(n);
+            else heightOffsets[k] = Math.abs(n);  // 符号は formula モードで決まるので絶対値で保持
+          }
+        }
+        renderHeightRows();
+      };
+      inp.addEventListener('blur', commit);
+      inp.addEventListener('keydown', ev => { if (ev.key === 'Enter') inp.blur(); });
+
+      body.appendChild(row);
+      return;
+    }
+
+    // ---------- 自動計算セクション ----------
     const v = getEffective(item.key);
     const hasValue = v !== null;
-    // 入力フェーズ + value/offset、auto セクションの offset/echo を集計
-    if (item.kind !== 'echo' || item.section === 'auto') total++;
-    if (hasValue && (item.kind !== 'echo' || item.section === 'auto')) filled++;
+    total++;
+    if (hasValue) filled++;
 
     const row = document.createElement('div');
     row.className = 'height-row';
-    if (item.section === 'input') row.classList.add('row-input');
     if (item.kind === 'echo') row.classList.add('row-echo');
 
     const left = document.createElement('div');
     left.className = 'height-left';
-
     const label = document.createElement('div');
     label.className = 'height-label';
     label.textContent = item.label;
@@ -14026,24 +14203,13 @@ function renderHeightRows() {
     if (item.kind === 'offset') {
       const chip = document.createElement('div');
       chip.className = 'height-formula';
-      const off = getOffset(item.key);
-      const baseItem = HEIGHT_ITEMS.find(h => h.key === item.base);
-      const baseLabel = baseItem ? baseItem.label : item.base;
-      const signFixed = item.signFixed;
-      if (off === null) {
-        const prefix = signFixed === -1 ? '−' : '＋';
-        chip.textContent = `${baseLabel} ${prefix} ___`;
-        chip.classList.add('empty');
-      } else {
-        chip.textContent = formatFormula(item.key);
-      }
+      chip.textContent = formatFormula(item.key);
       chip.addEventListener('click', e => {
         e.stopPropagation();
         startInlineOffsetEdit(chip, item.key);
       });
       left.appendChild(chip);
     }
-
     row.appendChild(left);
 
     const val = document.createElement('div');
@@ -14051,11 +14217,10 @@ function renderHeightRows() {
     if (hasValue) {
       val.innerHTML = `<span class="height-num">${v}</span><span class="height-unit">mm</span>`;
     } else {
-      val.textContent = item.section === 'input' ? 'タップして入力' : '未計算';
+      val.textContent = '未計算';
     }
     row.appendChild(val);
 
-    // echo 行は読み取り専用（タップしても何もしない）
     if (item.kind === 'echo') {
       row.style.cursor = 'default';
     } else {
@@ -14064,6 +14229,33 @@ function renderHeightRows() {
     body.appendChild(row);
   });
   document.getElementById('heightTitle').textContent = `高さ記録 (${filled}/${total})`;
+}
+
+// 砕石厚など、絶対値マグニチュードだけ編集する簡易インラインエディタ
+function startInlineMagEdit(chipEl, key) {
+  const current = getOffset(key);
+  const wrap = document.createElement('span');
+  wrap.className = 'multi-adj-chip editing';
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.inputMode = 'numeric';
+  input.pattern = '[0-9]*';
+  input.value = current !== null ? String(Math.abs(current)) : '';
+  input.style.cssText = 'width:3em;border:none;background:var(--surface);font:inherit;text-align:center;border-radius:4px;padding:1px 4px;';
+  wrap.appendChild(input);
+  wrap.appendChild(document.createTextNode(' mm'));
+  let committed = false;
+  const commit = () => {
+    if (committed) return;
+    committed = true;
+    const n = parseInt(input.value, 10);
+    if (!isNaN(n) && n >= 0) heightOffsets[key] = n;
+    renderHeightRows();
+  };
+  input.addEventListener('blur', commit);
+  input.addEventListener('keydown', ev => { if (ev.key === 'Enter') input.blur(); });
+  chipEl.replaceWith(wrap);
+  setTimeout(() => { input.focus(); input.select(); }, 0);
 }
 
 function startInlineOffsetEdit(chipEl, key) {
@@ -14605,7 +14797,7 @@ async function exportPDF() {
         } else {
           arr.forEach(e => {
             heightRows += `<tr>
-              <td>${it.label} <span style="color:#666;font-size:12px;">(${e.baseLabel})</span></td>
+              <td>${it.label} <span style="color:#666;font-size:12px;">(${e.baseLabel} ${e.formula})</span></td>
               <td class="val">${e.value} mm</td>
             </tr>`;
           });
