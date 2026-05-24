@@ -822,15 +822,20 @@
   }
   .hf-base {
     color: var(--text2);
-    font-weight: 700;
+    font-weight: 600;
     font-size: 13px;
     white-space: nowrap;
+    font-family: inherit;
   }
   .hf-op {
-    font-size: 16px;
-    font-weight: 800;
+    font-size: 14px;
+    font-weight: 600;
     color: var(--brand);
     padding: 0 1px;
+    /* 絵文字フォントへのフォールバックを避けるため、テキスト専用フォントを明示 */
+    font-family: system-ui, -apple-system, "SF Pro Text", "Helvetica Neue", "Hiragino Sans", sans-serif;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
   }
   .hf-input {
     flex: 1;
@@ -934,6 +939,7 @@
     touch-action: manipulation;
     align-self: center;
     border: 1px solid transparent;
+    font-family: system-ui, -apple-system, "SF Pro Text", "Helvetica Neue", "Hiragino Sans", sans-serif;
   }
   /* 自動行：[label(固定118px)] [chip] [value] を1行に。
      チップの左端が縦揃い、値は右端揃い */
@@ -1036,24 +1042,27 @@
     gap: 8px;
   }
   .multi-tag {
-    font-size: 10px;
+    font-size: 13px;
     font-weight: 700;
-    color: var(--text2);
-    background: var(--surface2);
-    padding: 1px 6px;
-    border-radius: 4px;
+    color: var(--ink);
+    background: transparent;
+    padding: 0;
+    border-radius: 0;
+    letter-spacing: -0.01em;
   }
   .multi-formula {
     font-size: 11px;
     font-weight: 700;
     color: var(--brand-ink);
     background: var(--brand-soft);
-    padding: 1px 7px;
+    padding: 3px 10px;
     border-radius: 999px;
     font-variant-numeric: tabular-nums;
+    font-family: system-ui, -apple-system, "SF Pro Text", "Helvetica Neue", "Hiragino Sans", sans-serif;
+    white-space: nowrap;
   }
   .multi-num {
-    font-size: 15px;
+    font-size: 18px;
     font-weight: 800;
     color: var(--brand);
     font-variant-numeric: tabular-nums;
@@ -1096,14 +1105,17 @@
     border-top: 1px dashed var(--border);
   }
   .deep-entry {
-    display: flex;
+    /* 主行（row-auto）と同じ列構成：[ラベル118px][チップ可変][自動余白][値82px] */
+    display: grid;
+    grid-template-columns: 118px minmax(0, auto) 1fr auto;
     align-items: baseline;
     gap: 8px;
-    justify-content: flex-end;
     padding-right: 0;
   }
+  .deep-entry .multi-tag { grid-column: 1; }
+  .deep-entry .multi-formula { grid-column: 2; justify-self: start; }
   .deep-entry .multi-num {
-    /* main 行の .height-value と同じ min-width で右端を揃える */
+    grid-column: 4;
     min-width: 82px;
   }
 
@@ -13611,12 +13623,9 @@ function getComputed(key) {
     if (baseVal === null) return null;
     const off = getOffset(key);
     if (off === null) return null;
-    // 入力セクションは literal math（表示と一致）：BM+300 → 1800、GL-400 → 1400
-    if (item.section === 'input') {
-      const mag = Math.abs(off);
-      return (item.formula === 'plus') ? baseVal + mag : baseVal - mag;
-    }
-    // 自動項目は標高オフセット → 読み = base − offset
+    // 全項目で「読み = base − offset」（標高オフセット）。
+    // 入力項目は offset を magnitude(>=0) として保持：base − Math.abs(off)
+    if (item.section === 'input') return baseVal - Math.abs(off);
     return baseVal - off;
   }
   return null;
