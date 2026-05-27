@@ -13630,7 +13630,7 @@ let baseScale = 1;
 
 // 表示サイズ（fit, CSS px）。バッキングストア解像度とは別管理
 let dispW = 0, dispH = 0;
-const MAX_BACKING = 5500;     // canvas バッキングストア長辺の上限（36MB相当、iPhone 11+で安全）
+const MAX_BACKING = 6500;     // canvas バッキングストア長辺の上限（〜170MB、iPhone 12+で安全）
 let renderTask = null;        // 進行中の PDF 描画タスク（中断用）
 
 // transform state
@@ -13643,6 +13643,10 @@ let pinIdCounter = 1;
 let editingPinId = null;
 let pendingPinPos = null;
 let rotation = 0;   // 図面の回転角（0/90/180/270、CW）
+let targetZoomLevel = 2;   // 何倍ズームまで鮮明に保つか（progressive rerender で動的に増やす）
+let lastRenderedQ = 0;
+let lastRenderedZoom = 1;
+let pendingRerenderTimer = null;
 
 let inputBuffer = '';
 
@@ -13815,6 +13819,10 @@ function resetPins() {
   editingPinId = null;
   pendingPinPos = null;
   rotation = 0;
+  targetZoomLevel = 2;
+  lastRenderedZoom = 1;
+  lastRenderedQ = 0;
+  if (pendingRerenderTimer) { clearTimeout(pendingRerenderTimer); pendingRerenderTimer = null; }
   heightValues = {};
   heightOffsets = {};
   stamps = [];
@@ -13919,14 +13927,17 @@ async function renderPage(num) {
     baseScale = Math.min(areaW / vp1.width, areaH / vp1.height);
     dispW = vp1.width * baseScale;
     dispH = vp1.height * baseScale;
-    // 高解像度バッキングストアで描画 → 拡大しても図面・文字が濁らない。
-    // 8倍スーパーサンプリングまで（MAX_BACKING の範囲内で最大化）
     const longEdge = Math.max(dispW, dispH);
-    const q = Math.min(8, MAX_BACKING / longEdge);
+    const dpr = window.devicePixelRatio || 1;
+    // 初期描画：表示ズーム targetZoomLevel まで鮮明に保つ q を計算
+    // q ≈ targetZoomLevel * dpr。ただし MAX_BACKING を超えないよう抑える
+    const cap = MAX_BACKING / longEdge;
+    const desired = targetZoomLevel * dpr;
+    const q = Math.min(desired, cap);
     const rvp = page.getViewport({ scale: baseScale * q, rotation: rotation });
     canvas.width = Math.round(rvp.width);
     canvas.height = Math.round(rvp.height);
-    const task = page.render({ canvasContext: ctx, viewport: rvp, intent: 'print' });
+    const task = page.render({ canvasContext: ctx, viewport: rvp });
     renderTask = task;
     try {
       await task.promise;
@@ -13935,6 +13946,8 @@ async function renderPage(num) {
       throw e;
     }
     if (renderTask === task) renderTask = null;
+    lastRenderedQ = q;
+    lastRenderedZoom = q / dpr;   // 鮮明維持できる最大表示ズーム倍率
   } else {
     const iw = imgEl.naturalWidth, ih = imgEl.naturalHeight;
     const swap = (rotation === 90 || rotation === 270);
@@ -14095,7 +14108,23 @@ canvasArea.addEventListener('touchend', e => {
   draggingStampEl = null;
   draggingPin = null;
   draggingPinEl = null;
+  // ピンチが終わったら、現在のズーム倍率に応じて高解像度で再描画
+  if (ts.length === 0) maybeRerenderForZoom();
 }, { passive: false });
+
+// 現在のズーム倍率に必要な解像度で PDF を再描画
+function maybeRerenderForZoom() {
+  if (srcType !== 'pdf' || !loaded) return;
+  const currentZoom = scale / baseScale;
+  if (currentZoom <= lastRenderedZoom * 1.1) return;  // 余裕があるなら何もしない
+  if (pendingRerenderTimer) clearTimeout(pendingRerenderTimer);
+  pendingRerenderTimer = setTimeout(() => {
+    pendingRerenderTimer = null;
+    // 20% 余裕を持って targetZoomLevel を上げ、再描画
+    targetZoomLevel = Math.max(targetZoomLevel, currentZoom * 1.2);
+    renderPage(currentPage);
+  }, 220);
+}
 
 function getDist(a, b) {
   return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
