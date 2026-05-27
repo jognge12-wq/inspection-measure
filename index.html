@@ -14002,6 +14002,7 @@ let lastDist = 0;
 let lastMid = null;
 let isPinching = false;
 let tapStart = null;
+let didPan = false;   // この touch セッションで一度でもパンしたか
 
 canvasArea.addEventListener('touchstart', e => {
   e.preventDefault();
@@ -14013,6 +14014,7 @@ canvasArea.addEventListener('touchstart', e => {
     // x/y: パン中に更新される現在位置（差分計算用）
     tapStart = { x: tX, y: tY, t: Date.now(), origX: tX, origY: tY };
     isPinching = false;
+    didPan = false;
     // ピン／スタンプの上で始まったか判定（移動用）
     draggingPin = null; draggingPinEl = null;
     draggingStamp = null; draggingStampEl = null;
@@ -14067,6 +14069,10 @@ canvasArea.addEventListener('touchmove', e => {
       tx += dx; ty += dy;
       tapStart.x = ts[0].clientX;
       tapStart.y = ts[0].clientY;
+      // 開始点から 5px 以上動いたらパン扱いにフラグ立て（タップ判定を無効化）
+      const totalDx = ts[0].clientX - tapStart.origX;
+      const totalDy = ts[0].clientY - tapStart.origY;
+      if (Math.abs(totalDx) > 5 || Math.abs(totalDy) > 5) didPan = true;
       clampTransform();
       applyTransform();
     }
@@ -14096,12 +14102,11 @@ canvasArea.addEventListener('touchend', e => {
   e.preventDefault();
   const ts = Array.from(e.touches);
 
-  if (ts.length === 0 && tapStart && !isPinching) {
-    // タップ判定は touchstart 時の origX/origY との総移動距離で
+  if (ts.length === 0 && tapStart && !isPinching && !didPan) {
+    // 一度もパンしていない && origX/origY からの総移動量も小さいときだけタップ判定
     const dx = e.changedTouches[0].clientX - tapStart.origX;
     const dy = e.changedTouches[0].clientY - tapStart.origY;
     const dt = Date.now() - tapStart.t;
-    // 閾値も 8→10px に少し緩めて、ピン/スタンプの誤配置を防ぐ
     if (Math.abs(dx) < 10 && Math.abs(dy) < 10 && dt < 350) {
       lastTapDt = dt;
       handleTap(e.changedTouches[0]);
