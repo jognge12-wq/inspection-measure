@@ -1380,14 +1380,14 @@
   <button class="tool-btn active" data-tool="pin" aria-label="数値ピン">
     <svg viewBox="0 0 24 24" class="tool-ico" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s-7-7-7-12a7 7 0 0 1 14 0c0 5-7 12-7 12z"/><circle cx="12" cy="10" r="2.5"/></svg>
   </button>
+  <button class="tool-btn" data-tool="line" aria-label="ジョイント">
+    <svg viewBox="0 0 72 72" class="tool-ico-stamp"><path d="M 8 36 L 64 36 M 36 28 L 36 44" fill="none" stroke="#1e3a8a" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
   <button class="tool-btn" data-tool="L" aria-label="Lコーナー補強">
-    <svg viewBox="0 0 72 72" class="tool-ico-stamp"><path d="M 18 14 L 18 58 L 58 58" fill="none" stroke="#1d4ed8" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <svg viewBox="0 0 72 72" class="tool-ico-stamp"><path d="M 18 14 L 18 58 L 58 58" fill="none" stroke="#1e3a8a" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/></svg>
   </button>
   <button class="tool-btn" data-tool="U" aria-label="コ端部筋">
-    <svg viewBox="0 0 72 72" class="tool-ico-stamp"><path d="M 26 14 L 56 14 L 56 58 L 26 58" fill="none" stroke="#1d4ed8" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/></svg>
-  </button>
-  <button class="tool-btn" data-tool="line" aria-label="ジョイント">
-    <svg viewBox="0 0 72 72" class="tool-ico-stamp"><path d="M 8 36 L 64 36" fill="none" stroke="#1d4ed8" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <svg viewBox="0 0 72 72" class="tool-ico-stamp"><path d="M 26 14 L 56 14 L 56 58 L 26 58" fill="none" stroke="#1e3a8a" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/></svg>
   </button>
   <button class="tool-btn" data-tool="delete" aria-label="削除">
     <svg viewBox="0 0 24 24" class="tool-ico" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6M10 11v6M14 11v6"/></svg>
@@ -14773,7 +14773,7 @@ function renderPins() {
 const STAMP_PATH = {
   L:    'M 18 14 L 18 58 L 58 58',
   U:    'M 26 14 L 56 14 L 56 58 L 26 58',
-  line: 'M 8 36 L 64 36'
+  line: 'M 8 36 L 64 36 M 36 28 L 36 44'   // 中心に縦tick：ジョイント位置を明示
 };
 const STAMP_ANGLES = { L: [0, 90, 180, 270], U: [0, 90, 180, 270], line: [0, 90] };
 let stampSizeFrac = 0.04;   // 図面幅に対するスタンプの大きさ（スライダーで調整）
@@ -14785,8 +14785,8 @@ document.getElementById('stampSize').addEventListener('input', e => {
 function stampSVG(type) {
   const d = STAMP_PATH[type];
   return '<svg viewBox="0 0 72 72">'
-    + '<path d="' + d + '" fill="none" stroke="#ffffff" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>'
-    + '<path d="' + d + '" fill="none" stroke="#1d4ed8" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>'
+    + '<path d="' + d + '" fill="none" stroke="#ffffff" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>'
+    + '<path d="' + d + '" fill="none" stroke="#1e3a8a" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>'
     + '</svg>';
 }
 
@@ -14845,10 +14845,10 @@ function drawStampOnCanvas(cx, stamp, cw, ch) {
   cx.lineJoin = 'round';
   const path = new Path2D(d);
   cx.strokeStyle = '#ffffff';
-  cx.lineWidth = 16;
+  cx.lineWidth = 13;
   cx.stroke(path);
-  cx.strokeStyle = '#1d4ed8';
-  cx.lineWidth = 9;
+  cx.strokeStyle = '#1e3a8a';
+  cx.lineWidth = 7;
   cx.stroke(path);
   cx.restore();
 }
