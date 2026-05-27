@@ -13643,7 +13643,7 @@ let pinIdCounter = 1;
 let editingPinId = null;
 let pendingPinPos = null;
 let rotation = 0;   // 図面の回転角（0/90/180/270、CW）
-let targetZoomLevel = 2;   // 何倍ズームまで鮮明に保つか（progressive rerender で動的に増やす）
+let targetZoomLevel = 3;   // 初期は3倍ズームまで鮮明（progressive rerender で必要に応じて拡張）
 let lastRenderedQ = 0;
 let lastRenderedZoom = 1;
 let pendingRerenderTimer = null;
@@ -13819,7 +13819,7 @@ function resetPins() {
   editingPinId = null;
   pendingPinPos = null;
   rotation = 0;
-  targetZoomLevel = 2;
+  targetZoomLevel = 3;
   lastRenderedZoom = 1;
   lastRenderedQ = 0;
   if (pendingRerenderTimer) { clearTimeout(pendingRerenderTimer); pendingRerenderTimer = null; }
@@ -14009,7 +14009,9 @@ canvasArea.addEventListener('touchstart', e => {
 
   if (touches.length === 1) {
     const tX = touches[0].clientX, tY = touches[0].clientY;
-    tapStart = { x: tX, y: tY, t: Date.now() };
+    // origX/origY: touchstart 時の絶対位置（タップ判定用に保持）
+    // x/y: パン中に更新される現在位置（差分計算用）
+    tapStart = { x: tX, y: tY, t: Date.now(), origX: tX, origY: tY };
     isPinching = false;
     // ピン／スタンプの上で始まったか判定（移動用）
     draggingPin = null; draggingPinEl = null;
@@ -14059,11 +14061,12 @@ canvasArea.addEventListener('touchmove', e => {
         dragEl.style.top = (dragObj.yRatio * dispH) + 'px';
       }
     } else if (tapStart) {
-      // Pan
+      // Pan：差分計算用の x/y だけ更新、origX/origY と t は維持
       const dx = ts[0].clientX - tapStart.x;
       const dy = ts[0].clientY - tapStart.y;
       tx += dx; ty += dy;
-      tapStart = { x: ts[0].clientX, y: ts[0].clientY, t: tapStart.t };
+      tapStart.x = ts[0].clientX;
+      tapStart.y = ts[0].clientY;
       clampTransform();
       applyTransform();
     }
@@ -14094,10 +14097,12 @@ canvasArea.addEventListener('touchend', e => {
   const ts = Array.from(e.touches);
 
   if (ts.length === 0 && tapStart && !isPinching) {
-    const dx = e.changedTouches[0].clientX - tapStart.x;
-    const dy = e.changedTouches[0].clientY - tapStart.y;
+    // タップ判定は touchstart 時の origX/origY との総移動距離で
+    const dx = e.changedTouches[0].clientX - tapStart.origX;
+    const dy = e.changedTouches[0].clientY - tapStart.origY;
     const dt = Date.now() - tapStart.t;
-    if (Math.abs(dx) < 8 && Math.abs(dy) < 8 && dt < 350) {
+    // 閾値も 8→10px に少し緩めて、ピン/スタンプの誤配置を防ぐ
+    if (Math.abs(dx) < 10 && Math.abs(dy) < 10 && dt < 350) {
       lastTapDt = dt;
       handleTap(e.changedTouches[0]);
     }
@@ -14123,7 +14128,7 @@ function maybeRerenderForZoom() {
     // 20% 余裕を持って targetZoomLevel を上げ、再描画
     targetZoomLevel = Math.max(targetZoomLevel, currentZoom * 1.2);
     renderPage(currentPage);
-  }, 220);
+  }, 150);
 }
 
 function getDist(a, b) {
