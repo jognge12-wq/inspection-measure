@@ -247,50 +247,93 @@
     font-variant-numeric: tabular-nums;
   }
 
-  /* ===== DROP ZONE ===== */
+  /* ===== DROP ZONE（ms-hub Rich） ===== */
   #dropZone {
     flex: 1;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 18px;
-    padding: 40px;
+    gap: 26px;
+    padding: 32px 20px;
+    background: var(--bg);
   }
-
-  .drop-icon {
-    width: 80px;
-    height: 80px;
-    border-radius: 20px;
-    background: var(--brand-soft);
-    color: var(--brand-ink);
+  .drop-hero {
     display: flex;
+    flex-direction: column;
     align-items: center;
-    justify-content: center;
-    font-size: 36px;
+    gap: 10px;
   }
-
-  .drop-label {
-    font-size: 14px;
+  .drop-hero-icon {
+    width: 72px;
+    height: 72px;
+    color: var(--brand);
+    padding: 14px;
+    background: var(--brand-softer);
+    border-radius: 22px;
+    box-sizing: content-box;
+  }
+  .drop-title {
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--ink);
+    letter-spacing: -0.02em;
+    margin-top: 4px;
+  }
+  .drop-sub {
+    font-size: 13px;
     color: var(--text2);
     text-align: center;
-    line-height: 1.7;
+    line-height: 1.5;
   }
-
-  .load-btn {
-    padding: 15px 32px;
-    border-radius: 14px;
-    background: var(--brand);
-    border: none;
-    color: #fff;
-    font-size: 16px;
-    font-weight: 700;
+  .drop-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    width: 100%;
+    max-width: 380px;
+  }
+  .drop-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 22px 12px 18px;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 18px;
     cursor: pointer;
     font-family: inherit;
-    box-shadow: var(--shadow);
+    transition: background 0.12s, border-color 0.12s, transform 0.1s;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+    touch-action: manipulation;
   }
-
-  .load-btn:active { transform: scale(0.97); opacity: 0.92; }
+  .drop-card:active {
+    transform: scale(0.97);
+    background: var(--brand-softer);
+    border-color: var(--brand);
+  }
+  .drop-card .dc-icon {
+    width: 36px;
+    height: 36px;
+    color: var(--brand);
+  }
+  .drop-card .dc-label {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--ink);
+    letter-spacing: -0.01em;
+  }
+  .drop-card .dc-hint {
+    font-size: 11px;
+    color: var(--text3);
+  }
+  .drop-tips {
+    font-size: 11px;
+    color: var(--text3);
+    text-align: center;
+    margin-top: 4px;
+  }
 
   /* ===== CANVAS AREA ===== */
   #canvasArea {
@@ -1302,8 +1345,6 @@
 </head>
 <body>
 
-<input type="file" id="fileInput" accept="image/*,.pdf,application/pdf">
-
 <!-- HEADER -->
 <header>
   <div class="header-title" id="headerTitle">📋 現場検査 寸法記録</div>
@@ -1311,6 +1352,10 @@
 
 <!-- TOOLBAR -->
 <div class="toolbar" id="toolbar" style="display:none">
+  <button class="tbar-btn" id="btnRotate" title="図面を90°右に回転">
+    <svg viewBox="0 0 24 24" class="tbar-ico" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7"/><polyline points="21 4 21 10 15 10"/></svg>
+    <span class="tbar-label">回転</span>
+  </button>
   <button class="tbar-btn" id="btnList">
     <svg viewBox="0 0 24 24" class="tbar-ico" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="3" width="8" height="4" rx="1"/><path d="M16 5h2a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2"/><path d="M9 12h7M9 16h7"/></svg>
     <span class="tbar-label">一覧</span>
@@ -1356,10 +1401,40 @@
 </div>
 
 <!-- DROP ZONE -->
+<input type="file" id="filePdf" accept=".pdf,application/pdf" style="display:none">
+<input type="file" id="filePhoto" accept="image/*" style="display:none">
 <div id="dropZone">
-  <div class="drop-icon">📄</div>
-  <div class="drop-label">図面PDFを読み込んでください<br>タップで測定箇所にピンを刺せます</div>
-  <button class="load-btn" id="btnLoad">📂 図面を開く</button>
+  <div class="drop-hero">
+    <svg class="drop-hero-icon" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <rect x="10" y="8" width="44" height="48" rx="4"/>
+      <path d="M22 22 h20 M22 32 h20 M22 42 h12"/>
+      <circle cx="48" cy="48" r="2" fill="currentColor" stroke="none"/>
+    </svg>
+    <div class="drop-title">図面を開く</div>
+    <div class="drop-sub">雨の日でも、現場でそのまま測定</div>
+  </div>
+
+  <div class="drop-actions">
+    <button class="drop-card" id="btnLoadPdf">
+      <svg viewBox="0 0 24 24" class="dc-icon" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+        <path d="M14 2v6h6"/>
+        <path d="M9 13h6M9 17h4"/>
+      </svg>
+      <div class="dc-label">PDFを選ぶ</div>
+      <div class="dc-hint">図面・仕様書</div>
+    </button>
+    <button class="drop-card" id="btnLoadPhoto">
+      <svg viewBox="0 0 24 24" class="dc-icon" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+        <circle cx="12" cy="13" r="4"/>
+      </svg>
+      <div class="dc-label">写真を選ぶ</div>
+      <div class="dc-hint">カメラ・アルバム</div>
+    </button>
+  </div>
+
+  <div class="drop-tips">タップで測定箇所にピンを刺せます</div>
 </div>
 
 <!-- CANVAS AREA -->
@@ -13574,6 +13649,7 @@ let pins = [];
 let pinIdCounter = 1;
 let editingPinId = null;
 let pendingPinPos = null;
+let rotation = 0;   // 図面の回転角（0/90/180/270、CW）
 
 let inputBuffer = '';
 
@@ -13706,16 +13782,20 @@ const canvasArea = document.getElementById('canvasArea');
 const canvasWrapper = document.getElementById('canvasWrapper');
 
 // ===== File loading =====
-document.getElementById('btnLoad').addEventListener('click', () => {
-  document.getElementById('fileInput').click();
+document.getElementById('btnLoadPdf').addEventListener('click', () => {
+  document.getElementById('filePdf').click();
 });
-
-document.getElementById('fileInput').addEventListener('change', e => {
+document.getElementById('btnLoadPhoto').addEventListener('click', () => {
+  document.getElementById('filePhoto').click();
+});
+function _onPicked(e) {
   const file = e.target.files[0];
-  e.target.value = '';   // 同じファイルを連続で選び直せるように
+  e.target.value = '';
   if (!file) return;
   loadDrawing(file);
-});
+}
+document.getElementById('filePdf').addEventListener('change', _onPicked);
+document.getElementById('filePhoto').addEventListener('change', _onPicked);
 
 function ymdToday() {
   const n = new Date();
@@ -13741,6 +13821,7 @@ function resetPins() {
   pinIdCounter = 1;
   editingPinId = null;
   pendingPinPos = null;
+  rotation = 0;
   heightValues = {};
   heightOffsets = {};
   stamps = [];
@@ -13841,7 +13922,7 @@ async function renderPage(num) {
 
   if (srcType === 'pdf') {
     const page = await pdfDoc.getPage(num);
-    const vp1 = page.getViewport({ scale: 1 });
+    const vp1 = page.getViewport({ scale: 1, rotation: rotation });
     baseScale = Math.min(areaW / vp1.width, areaH / vp1.height);
     dispW = vp1.width * baseScale;
     dispH = vp1.height * baseScale;
@@ -13849,7 +13930,7 @@ async function renderPage(num) {
     let q = 3;
     const longEdge = Math.max(dispW, dispH);
     if (longEdge * q > MAX_BACKING) q = MAX_BACKING / longEdge;
-    const rvp = page.getViewport({ scale: baseScale * q });
+    const rvp = page.getViewport({ scale: baseScale * q, rotation: rotation });
     canvas.width = Math.round(rvp.width);
     canvas.height = Math.round(rvp.height);
     const task = page.render({ canvasContext: ctx, viewport: rvp });
@@ -13863,11 +13944,14 @@ async function renderPage(num) {
     if (renderTask === task) renderTask = null;
   } else {
     const iw = imgEl.naturalWidth, ih = imgEl.naturalHeight;
-    baseScale = Math.min(areaW / iw, areaH / ih);
-    dispW = iw * baseScale;
-    dispH = ih * baseScale;
+    const swap = (rotation === 90 || rotation === 270);
+    const dW = swap ? ih : iw;
+    const dH = swap ? iw : ih;
+    baseScale = Math.min(areaW / dW, areaH / dH);
+    dispW = dW * baseScale;
+    dispH = dH * baseScale;
     // バッキングストアは写真のネイティブ解像度（上限あり）
-    let bw = iw, bh = ih;
+    let bw = dW, bh = dH;
     const longEdge = Math.max(bw, bh);
     if (longEdge > MAX_BACKING) {
       const s = MAX_BACKING / longEdge;
@@ -13875,7 +13959,14 @@ async function renderPage(num) {
     }
     canvas.width = bw;
     canvas.height = bh;
-    ctx.drawImage(imgEl, 0, 0, bw, bh);
+    ctx.save();
+    ctx.translate(bw / 2, bh / 2);
+    ctx.rotate(rotation * Math.PI / 180);
+    // 描画は元向きのサイズで（回転後のキャンバスに収まるよう）
+    const drawW = swap ? bh : bw;
+    const drawH = swap ? bw : bh;
+    ctx.drawImage(imgEl, -drawW / 2, -drawH / 2, drawW, drawH);
+    ctx.restore();
   }
 
   // 表示は fit サイズに固定、バッキングストアは高解像度のまま保持
@@ -14162,6 +14253,24 @@ document.getElementById('pinModal').addEventListener('click', e => {
 
 // ===== 高さ記録フォーム =====
 document.getElementById('btnHeight').addEventListener('click', openHeightPanel);
+
+// 図面を 90° 右に回転（ピン・スタンプの座標も追従）
+document.getElementById('btnRotate').addEventListener('click', () => {
+  if (!loaded) return;
+  rotation = (rotation + 90) % 360;
+  // 90° CW: (x, y) → (1-y, x)
+  pins.forEach(p => {
+    const ox = p.xRatio, oy = p.yRatio;
+    p.xRatio = 1 - oy;
+    p.yRatio = ox;
+  });
+  stamps.forEach(s => {
+    const ox = s.xRatio, oy = s.yRatio;
+    s.xRatio = 1 - oy;
+    s.yRatio = ox;
+  });
+  renderPage(currentPage);
+});
 document.getElementById('btnCloseHeight').addEventListener('click', () => {
   document.getElementById('heightPanel').classList.remove('open');
 });
