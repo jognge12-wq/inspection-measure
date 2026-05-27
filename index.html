@@ -1401,8 +1401,8 @@
 </div>
 
 <!-- DROP ZONE -->
-<input type="file" id="filePdf" accept=".pdf,application/pdf" style="display:none">
-<input type="file" id="filePhoto" accept="image/*" style="display:none">
+<input type="file" id="fileCamera" accept="image/*" capture="environment" style="display:none">
+<input type="file" id="fileLib" accept="image/*,.pdf,application/pdf" style="display:none">
 <div id="dropZone">
   <div class="drop-hero">
     <svg class="drop-hero-icon" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -1411,30 +1411,23 @@
       <circle cx="48" cy="48" r="2" fill="currentColor" stroke="none"/>
     </svg>
     <div class="drop-title">図面を開く</div>
-    <div class="drop-sub">雨の日でも、現場でそのまま測定</div>
   </div>
 
   <div class="drop-actions">
-    <button class="drop-card" id="btnLoadPdf">
-      <svg viewBox="0 0 24 24" class="dc-icon" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-        <path d="M14 2v6h6"/>
-        <path d="M9 13h6M9 17h4"/>
-      </svg>
-      <div class="dc-label">PDFを選ぶ</div>
-      <div class="dc-hint">図面・仕様書</div>
-    </button>
-    <button class="drop-card" id="btnLoadPhoto">
+    <button class="drop-card" id="btnCamera">
       <svg viewBox="0 0 24 24" class="dc-icon" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
         <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
         <circle cx="12" cy="13" r="4"/>
       </svg>
-      <div class="dc-label">写真を選ぶ</div>
-      <div class="dc-hint">カメラ・アルバム</div>
+      <div class="dc-label">カメラで撮る</div>
+    </button>
+    <button class="drop-card" id="btnLib">
+      <svg viewBox="0 0 24 24" class="dc-icon" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+      </svg>
+      <div class="dc-label">ファイルから選ぶ</div>
     </button>
   </div>
-
-  <div class="drop-tips">タップで測定箇所にピンを刺せます</div>
 </div>
 
 <!-- CANVAS AREA -->
@@ -13782,11 +13775,11 @@ const canvasArea = document.getElementById('canvasArea');
 const canvasWrapper = document.getElementById('canvasWrapper');
 
 // ===== File loading =====
-document.getElementById('btnLoadPdf').addEventListener('click', () => {
-  document.getElementById('filePdf').click();
+document.getElementById('btnCamera').addEventListener('click', () => {
+  document.getElementById('fileCamera').click();
 });
-document.getElementById('btnLoadPhoto').addEventListener('click', () => {
-  document.getElementById('filePhoto').click();
+document.getElementById('btnLib').addEventListener('click', () => {
+  document.getElementById('fileLib').click();
 });
 function _onPicked(e) {
   const file = e.target.files[0];
@@ -13794,8 +13787,8 @@ function _onPicked(e) {
   if (!file) return;
   loadDrawing(file);
 }
-document.getElementById('filePdf').addEventListener('change', _onPicked);
-document.getElementById('filePhoto').addEventListener('change', _onPicked);
+document.getElementById('fileCamera').addEventListener('change', _onPicked);
+document.getElementById('fileLib').addEventListener('change', _onPicked);
 
 function ymdToday() {
   const n = new Date();
@@ -15002,6 +14995,9 @@ async function exportPDF() {
       const c = await renderSourceCanvas(pageNum);
       const cx = c.getContext('2d');
       const pagePins = pins.filter(p => p.pageNum === pageNum);
+      // ① スタンプを先に描画（下層）
+      stamps.filter(s => s.pageNum === pageNum).forEach(s => drawStampOnCanvas(cx, s, c.width, c.height));
+      // ② ピンを最前面に描画（重なってもピン値が見える）
       pagePins.forEach(pin => {
         const px = pin.xRatio * c.width;
         const py = pin.yRatio * c.height;
@@ -15033,7 +15029,6 @@ async function exportPDF() {
         cx.fillText(val, px, by + 38);
         cx.restore();
       });
-      stamps.filter(s => s.pageNum === pageNum).forEach(s => drawStampOnCanvas(cx, s, c.width, c.height));
       const dataUrl = c.toDataURL('image/jpeg', 0.92);
       const lbl = (srcType === 'pdf' && totalPages > 1)
         ? `図面 ${pageNum}ページ目（${pagePins.length}箇所）`
