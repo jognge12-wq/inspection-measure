@@ -13800,8 +13800,11 @@ function ymdToday() {
 }
 
 async function loadDrawing(file) {
-  if (loaded && pins.length > 0 &&
-      !confirm('別の図面を読み込むと、今のピンは消えます。よろしいですか？')) {
+  const hasWork = pins.length > 0 || stamps.length > 0 ||
+                  Object.keys(heightValues).length > 0 ||
+                  Object.keys(heightOffsets).length > 0;
+  if (loaded && hasWork &&
+      !confirm('別の図面を読み込むと、今のピン・スタンプ・高さ記録は消えます。よろしいですか？')) {
     return;
   }
   const isImage = (file.type && file.type.indexOf('image/') === 0) ||
@@ -13911,7 +13914,7 @@ function showLoadError(text) {
 }
 
 // ===== Render =====
-async function renderPage(num) {
+async function renderPage(num, preserveView = false) {
   // 進行中の描画があれば中断（前の図面が後から重なって描かれるのを防ぐ）
   if (renderTask) {
     try { renderTask.cancel(); } catch (e) {}
@@ -13983,8 +13986,13 @@ async function renderPage(num) {
   stampLayer.style.width = dispW + 'px';
   stampLayer.style.height = dispH + 'px';
 
-  scale = baseScale;
-  tx = 0; ty = 0;
+  if (preserveView) {
+    // progressive rerender：現在のズーム倍率・位置を維持（fit に戻さない）
+    clampTransform();
+  } else {
+    scale = baseScale;
+    tx = 0; ty = 0;
+  }
   applyTransform();
   renderStamps();
   renderPins();
@@ -14130,9 +14138,9 @@ function maybeRerenderForZoom() {
   if (pendingRerenderTimer) clearTimeout(pendingRerenderTimer);
   pendingRerenderTimer = setTimeout(() => {
     pendingRerenderTimer = null;
-    // 20% 余裕を持って targetZoomLevel を上げ、再描画
+    // 20% 余裕を持って targetZoomLevel を上げ、表示は維持したまま高解像度で再描画
     targetZoomLevel = Math.max(targetZoomLevel, currentZoom * 1.2);
-    renderPage(currentPage);
+    renderPage(currentPage, true);
   }, 150);
 }
 
@@ -15020,6 +15028,11 @@ function roundRect(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
 async function exportPDF() {
   const heightFilled = HEIGHT_ITEMS.some(it => {
     if (it.kind === 'echo') return false;
@@ -15098,8 +15111,8 @@ async function exportPDF() {
       pins.slice().sort((a, b) => a.id - b.id).forEach(pin => {
         rows += `<tr>
           <td class="num">${pin.id}</td>
-          <td>${pin.memo || '—'}</td>
-          <td class="${pin.value ? 'val' : 'empty'}">${pin.value ? pin.value + ' mm' : '未入力'}</td>
+          <td>${pin.memo ? escapeHtml(pin.memo) : '—'}</td>
+          <td class="${pin.value ? 'val' : 'empty'}">${pin.value ? escapeHtml(pin.value) + ' mm' : '未入力'}</td>
         </tr>`;
       });
       pinSection = `<h2>寸法一覧表（全${pins.length}箇所）</h2>
