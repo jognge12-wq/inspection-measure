@@ -13778,6 +13778,86 @@ const stampLayer = document.getElementById('stampLayer');
 const canvasArea = document.getElementById('canvasArea');
 const canvasWrapper = document.getElementById('canvasWrapper');
 
+// ===== 自動保存（localStorage・図面本体は保存しない） =====
+const LS_KEY = 'inspmeasure_autosave_v1';
+let currentDocKey = null;
+let isRestoring = false;
+let saveTimer = null;
+
+function serializeState() {
+  return {
+    docKey: currentDocKey,
+    pins, pinIdCounter,
+    stamps, stampIdCounter,
+    heightValues, heightOffsets,
+    rotation,
+    savedAt: Date.now()
+  };
+}
+function stateHasContent(s) {
+  return (s.pins && s.pins.length > 0) ||
+         (s.stamps && s.stamps.length > 0) ||
+         (s.heightValues && Object.keys(s.heightValues).length > 0) ||
+         (s.heightOffsets && Object.keys(s.heightOffsets).length > 0);
+}
+function writeStateNow() {
+  if (isRestoring || !loaded || !currentDocKey) return;
+  const s = serializeState();
+  try {
+    if (stateHasContent(s)) {
+      localStorage.setItem(LS_KEY, JSON.stringify(s));
+    } else {
+      // 空なら：現在の図面の保存だけ消す（他図面の保存は残す）
+      const raw = localStorage.getItem(LS_KEY);
+      if (raw) {
+        try { if (JSON.parse(raw).docKey === currentDocKey) localStorage.removeItem(LS_KEY); } catch (e) {}
+      }
+    }
+  } catch (e) { /* quota 等は無視 */ }
+}
+function saveState() {
+  if (isRestoring || !loaded || !currentDocKey) return;
+  if (saveTimer) clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => { saveTimer = null; writeStateNow(); }, 500);
+}
+function loadSavedFor(docKey) {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (!raw) return null;
+    const data = JSON.parse(raw);
+    if (data && data.docKey === docKey) return data;
+  } catch (e) {}
+  return null;
+}
+async function offerRestore() {
+  const saved = loadSavedFor(currentDocKey);
+  if (!saved || !stateHasContent(saved)) return;
+  const np = saved.pins ? saved.pins.length : 0;
+  const ns = saved.stamps ? saved.stamps.length : 0;
+  const w = new Date(saved.savedAt || Date.now());
+  const ts = `${w.getMonth() + 1}/${w.getDate()} ${String(w.getHours()).padStart(2, '0')}:${String(w.getMinutes()).padStart(2, '0')}`;
+  if (!confirm(`この図面の前回の記録が見つかりました。\n（${ts}・ピン${np}・スタンプ${ns}）\n復元しますか？`)) return;
+  isRestoring = true;
+  try {
+    pins = saved.pins || [];
+    pinIdCounter = saved.pinIdCounter || (pins.reduce((m, p) => Math.max(m, p.id), 0) + 1);
+    stamps = saved.stamps || [];
+    stampIdCounter = saved.stampIdCounter || (stamps.reduce((m, s) => Math.max(m, s.id), 0) + 1);
+    heightValues = saved.heightValues || {};
+    heightOffsets = saved.heightOffsets || {};
+    rotation = saved.rotation || 0;
+    await renderPage(currentPage);
+    updatePinCount();
+  } finally {
+    isRestoring = false;
+  }
+}
+// アプリが閉じられる/バックグラウンドに入る瞬間に確実に保存
+window.addEventListener('pagehide', writeStateNow);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') writeStateNow();
+});
+
 // ===== File loading =====
 document.getElementById('btnCamera').addEventListener('click', () => {
   document.getElementById('fileCamera').click();
@@ -13809,11 +13889,13 @@ async function loadDrawing(file) {
   }
   const isImage = (file.type && file.type.indexOf('image/') === 0) ||
                   /\.(jpe?g|png|heic|heif|webp|gif|bmp)$/i.test(file.name || '');
+  currentDocKey = `${file.name || 'noname'}::${file.size || 0}`;
   if (isImage) {
     await loadImage(file);
   } else {
     await loadPDF(file);
   }
+  await offerRestore();
 }
 
 function resetPins() {
@@ -14127,7 +14209,7 @@ canvasArea.addEventListener('touchend', e => {
   draggingPin = null;
   draggingPinEl = null;
   // ピンチが終わったら、現在のズーム倍率に応じて高解像度で再描画
-  if (ts.length === 0) maybeRerenderForZoom();
+  if (ts.length === 0) { maybeRerenderForZoom(); saveState(); }
 }, { passive: false });
 
 // 現在のズーム倍率に必要な解像度で PDF を再描画
@@ -14478,6 +14560,7 @@ function renderHeightRows() {
     body.appendChild(row);
   });
   document.getElementById('heightTitle').textContent = `高さ記録 (${filled}/${total})`;
+  saveState();
 }
 
 // 砕石厚など、絶対値マグニチュードだけ編集する簡易インラインエディタ
@@ -14814,6 +14897,7 @@ function renderPins() {
 
     pinLayer.appendChild(el);
   });
+  saveState();
 }
 
 // ===== スタンプマーク =====
@@ -14863,6 +14947,7 @@ function renderStamps() {
     el.innerHTML = stampSVG(s.type);
     stampLayer.appendChild(el);
   });
+  saveState();
 }
 
 function rotateStamp(stamp) {
